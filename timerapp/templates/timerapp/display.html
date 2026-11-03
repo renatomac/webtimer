@@ -1,0 +1,25 @@
+{% load static %}<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>{{ studio.name }} timer</title>
+<link rel="stylesheet" href="{% static 'timerapp/style.css' %}">
+</head>
+<body class="display" data-status="ready">
+{% if studio.logo %}<img class="watermark" src="{{ studio.logo.url }}" alt="">{% endif %}
+<header>
+  <div id="date"></div>
+  <div class="time" id="time"></div>
+</header>
+<main>
+  <div class="digits" id="digits">--:--</div>
+  <div class="phase" id="phase"></div>
+  <div class="status" id="status"></div>
+</main>
+<button id="sound" type="button">Enable sound</button>
+{{ config|json_script:"display-config" }}
+<script src="{% static 'timerapp/timer.js' %}"></script>
+<script src="{% static 'timerapp/display.js' %}"></script>
+</body>
+</html>

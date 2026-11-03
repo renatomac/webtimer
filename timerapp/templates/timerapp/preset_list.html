@@ -1,0 +1,24 @@
+{% extends "timerapp/base.html" %}
+{% block nav %}
+  <a href="{% url 'control' studio.slug %}">{{ studio.name }}</a>
+  <a href="{% url 'preset_list' studio.slug %}">Presets</a>
+{% endblock %}
+{% block content %}
+<h1>Timer presets</h1>
+<p><a class="btn" href="{% url 'preset_new' studio.slug %}">New preset</a></p>
+<table>
+  <tr><th>Name</th><th>Rounds</th><th>Round</th><th>Rest</th><th>Direction</th><th></th></tr>
+  {% for p in presets %}
+  <tr>
+    <td>{{ p.name }}</td><td>{{ p.rounds }}</td>
+    <td>{{ p.round_display }}</td>
+    <td>{{ p.rest_display }}</td><td>{{ p.get_direction_display }}</td>
+    <td>
+      <a href="{% url 'preset_edit' studio.slug p.pk %}">Edit</a>
+      <form method="post" action="{% url 'preset_delete' studio.slug p.pk %}" style="display:inline">{% csrf_token %}
+        <button type="submit" class="danger">Delete</button></form>
+    </td>
+  </tr>
+  {% empty %}<tr><td colspan="6">No presets yet.</td></tr>{% endfor %}
+</table>
+{% endblock %}

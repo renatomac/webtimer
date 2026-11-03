@@ -1,0 +1,22 @@
+{% load static %}<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>{% block title %}Web Timer{% endblock %}</title>
+<link rel="stylesheet" href="{% static 'timerapp/style.css' %}">
+</head>
+<body>
+<nav class="nav">
+  <strong>Web Timer</strong>
+  {% block nav %}{% endblock %}
+  {% if user.is_authenticated %}
+  <form method="post" action="{% url 'logout' %}">{% csrf_token %}<button type="submit">Log out</button></form>
+  {% endif %}
+</nav>
+<div class="page">
+  {% if messages %}<ul class="messages">{% for m in messages %}<li>{{ m }}</li>{% endfor %}</ul>{% endif %}
+  {% block content %}{% endblock %}
+</div>
+</body>
+</html>
