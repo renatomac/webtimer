@@ -1,0 +1,42 @@
+{% extends "timerapp/base.html" %}
+{% load static %}
+{% block title %}{{ studio.name }} controls{% endblock %}
+{% block nav %}
+  <a href="{% url 'control' studio.slug %}">{{ studio.name }}</a>
+  <a href="{% url 'preset_list' studio.slug %}">Presets</a>
+{% endblock %}
+{% block content %}
+<form onsubmit="return false">{% csrf_token %}
+  <label for="preset-select">Preset</label>
+  <select id="preset-select">
+    {% for p in presets %}
+      <option value="{{ p.pk }}" {% if p.pk == initial_state.selected_preset_id %}selected{% endif %}>{{ p.name }}</option>
+    {% empty %}
+      <option value="">No presets yet</option>
+    {% endfor %}
+  </select>
+  {% if not presets %}<p><a href="{% url 'preset_new' studio.slug %}">Create a preset</a></p>{% endif %}
+</form>
+<div class="panel">
+  <div class="status" id="status"></div>
+  <div class="digits" id="digits">--:--</div>
+  <div class="phase" id="phase"></div>
+</div>
+<div class="buttons">
+  <button data-cmd="start">Start</button>
+  <button data-cmd="pause">Pause</button>
+  <button data-cmd="resume">Resume</button>
+  <button data-cmd="stop" class="danger">Stop</button>
+  <button data-cmd="reset">Reset</button>
+</div>
+<p class="error" id="message" role="alert"></p>
+<h2>TV display link</h2>
+<p>Open this read-only link on the TV. Anyone with the link can view the display.</p>
+<p class="linkbox"><a href="{% url 'display' studio.display_token %}" target="_blank">{{ display_url }}</a></p>
+<form method="post" action="{% url 'regenerate_link' studio.slug %}">{% csrf_token %}
+  <button type="submit" class="danger">Revoke and regenerate link</button>
+</form>
+{{ config|json_script:"control-config" }}
+<script src="{% static 'timerapp/timer.js' %}"></script>
+<script src="{% static 'timerapp/control.js' %}"></script>
+{% endblock %}

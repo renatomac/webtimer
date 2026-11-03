@@ -1,0 +1,9 @@
+{% extends "timerapp/base.html" %}
+{% block content %}
+<h1>Your studios</h1>
+{% for s in studios %}
+  <p><a href="{% url 'control' s.slug %}">{{ s.name }}</a></p>
+{% empty %}
+  <p>You have not been assigned to a studio yet. Ask the platform administrator.</p>
+{% endfor %}
+{% endblock %}
