@@ -17,6 +17,18 @@ from .forms import TimerForm
 from .models import SpotifyAccount, Timer
 
 
+@login_required
+def timer_home(request):
+    timers = Timer.objects.filter(user=request.user)
+    timer = timers.filter(last_used_at__isnull=False).order_by("-last_used_at", "-pk").first()
+    if timer is None:
+        timer = timers.order_by("-created_at", "-pk").first()
+    if timer is None:
+        messages.info(request, "Create a timer setup to get started.")
+        return redirect("timers:create")
+    return redirect("timers:run", pk=timer.pk)
+
+
 class TimerListView(LoginRequiredMixin, ListView):
     model = Timer
     template_name = "timerapp/timer_list.html"
@@ -35,6 +47,9 @@ class TimerCreateView(LoginRequiredMixin, CreateView):
     def form_valid(self, form):
         form.instance.user = self.request.user
         return super().form_valid(form)
+
+    def get_success_url(self):
+        return reverse("timers:run", args=[self.object.pk])
 
 
 class TimerUpdateView(LoginRequiredMixin, UpdateView):
@@ -66,6 +81,7 @@ class TimerRunView(LoginRequiredMixin, DetailView):
 
     def get_object(self, queryset=None):
         timer = super().get_object(queryset)
+        Timer.objects.filter(pk=timer.pk).update(last_used_at=timezone.now())
         timer.sync_state()
         return timer
 

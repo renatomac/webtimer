@@ -1,9 +1,10 @@
 """Django settings for the webtimer project. Configured through environment variables."""
 import os
 from pathlib import Path
+from dotenv import load_dotenv
 
 BASE_DIR = Path(__file__).resolve().parent.parent
-
+load_dotenv(BASE_DIR / ".env")
 
 def env_bool(name, default=False):
     return os.environ.get(name, str(default)).strip().lower() in ("1", "true", "yes", "on")
@@ -104,7 +105,7 @@ MEDIA_ROOT = os.environ.get("DJANGO_MEDIA_ROOT", str(BASE_DIR / "media"))
 DEFAULT_AUTO_FIELD = "django.db.models.BigAutoField"
 
 LOGIN_URL = "login"
-LOGIN_REDIRECT_URL = "timers:list"
+LOGIN_REDIRECT_URL = "timers:home"
 LOGOUT_REDIRECT_URL = "login"
 
 # Optional Spotify OAuth. Leave blank until a Spotify developer app is configured.
@@ -115,3 +116,8 @@ SPOTIFY_REDIRECT_URI = os.environ.get("SPOTIFY_REDIRECT_URI", "")
 if not DEBUG:
     SESSION_COOKIE_SECURE = env_bool("DJANGO_SECURE_COOKIES", True)
     CSRF_COOKIE_SECURE = SESSION_COOKIE_SECURE
+
+# https://www.pythonanywhere.com/user/lzbjj/account/#api_token
+PA_USERNAME = 'lzbjj'
+PA_TOKEN = 'ebfb5812c0dbd431e786421a4d98204625a5cee5'
+    

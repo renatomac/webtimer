@@ -597,6 +597,29 @@
             applyState(renderData);
         }
 
+        // A directly opened TV page follows the selected timer's server state.
+        const linkedTimer = new URLSearchParams(window.location.search).get('timer');
+        if (linkedTimer && /^\d+$/.test(linkedTimer)) {
+            const stateUrl = "{% url 'timers:state' 0 %}".replace('/0/', '/' + linkedTimer + '/');
+            async function pollLinkedTimer() {
+                try {
+                    const response = await fetch(stateUrl, { cache: 'no-store' });
+                    if (response.redirected) {
+                        window.location.replace("{% url 'login' %}?next=" + encodeURIComponent(window.location.pathname + window.location.search));
+                        return;
+                    }
+                    if (!response.ok) throw new Error('Timer unavailable');
+                    updateReceiverTimer(await response.json());
+                    setStatus('LIVE · SYNCED', true);
+                } catch (error) {
+                    setStatus('RECONNECTING', false);
+                }
+                setTimeout(pollLinkedTimer, 1000);
+            }
+            pollLinkedTimer();
+            return;
+        }
+
         // ── CAST RECEIVER SETUP ───────────────────────────────────
         const context = cast.framework.CastReceiverContext.getInstance();
         const options = new cast.framework.CastReceiverOptions();

@@ -63,8 +63,9 @@ class TimerWorkflowTests(TestCase):
             content_type="application/json",
         )
 
+    @override_settings(SPOTIFY_CLIENT_ID="", SPOTIFY_CLIENT_SECRET="")
     def test_library_and_run_page_render(self):
-        self.assertRedirects(self.client.get("/"), reverse("timers:list"))
+        self.assertRedirects(self.client.get("/"), reverse("timers:home"), fetch_redirect_response=False)
         self.assertEqual(self.client.get(reverse("timers:list")).status_code, 200)
         response = self.client.get(reverse("timers:run", args=[self.timer.pk]))
         self.assertEqual(response.status_code, 200)
@@ -147,3 +148,30 @@ class TimerWorkflowTests(TestCase):
         self.assertEqual(response.json()["time_remaining"], 5)
         self.timer.refresh_from_db()
         self.assertEqual(self.timer.get_current_timer_state()[3], 4)
+
+class TimerLoginTests(TestCase):
+    def setUp(self):
+        self.user = get_user_model().objects.create_user(username="returning", password="test-pass-123")
+        self.client.force_login(self.user)
+
+    def test_empty_account_prompts_for_setup(self):
+        response = self.client.get(reverse("timers:home"), follow=True)
+        self.assertContains(response, "Create a timer setup to get started.")
+        self.assertEqual(response.resolver_match.url_name, "create")
+
+    def test_last_selected_timer_survives_logout(self):
+        first = Timer.objects.create(user=self.user, name="First")
+        Timer.objects.create(user=self.user, name="Newer")
+        self.client.get(reverse("timers:run", args=[first.pk]))
+        self.client.logout()
+        response = self.client.post(reverse("login"), {"username": "returning", "password": "test-pass-123"})
+        self.assertRedirects(response, reverse("timers:home"), fetch_redirect_response=False)
+        self.assertRedirects(self.client.get(reverse("timers:home")), reverse("timers:run", args=[first.pk]))
+
+    def test_fallback_ignores_other_users_and_deleted_timers(self):
+        timer = Timer.objects.create(user=self.user, name="Mine")
+        other = get_user_model().objects.create_user(username="other")
+        Timer.objects.create(user=other, name="Other", last_used_at=timezone.now())
+        self.assertRedirects(self.client.get(reverse("timers:home")), reverse("timers:run", args=[timer.pk]))
+        timer.delete()
+        self.assertRedirects(self.client.get(reverse("timers:home")), reverse("timers:create"))

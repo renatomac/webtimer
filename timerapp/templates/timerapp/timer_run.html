@@ -792,11 +792,10 @@
                 <div id="timerDisplay" class="timer-display state-ready">
                     00:00
                 </div>
-            </div>
-
             <!-- Interval Progress Bar -->
             <div class="progress-container">
                 <div id="progressBar" class="progress-bar-fill state-ready" style="width: 100%;"></div>
+            </div>
             </div>
 
             <!-- Action Control Buttons -->
@@ -888,6 +887,10 @@
             </section>
             </div>
         </div>
+
+        <footer class="timer-tv-link">
+            <a href="{% url 'cast_receiver' %}?timer={{ timer.pk }}" target="_blank" rel="noopener"><i class="fas fa-tv" aria-hidden="true"></i> Open TV timer</a>
+        </footer>
 
         <p id="timerActionError" class="timer-action-error" role="alert" hidden></p>
         <dialog id="timerConfirmation" class="timer-confirmation" aria-labelledby="timerConfirmationTitle" aria-describedby="timerConfirmationMessage">
@@ -1559,12 +1562,18 @@
         }
 
         function renderLocalStateWithValues(current) {
+            const previousStatus = window.lastRenderedState?.status;
             window.lastRenderedState = {
                 status: current.status,
                 current_state: current.current_state,
                 current_round: current.current_round,
                 time_remaining: current.time_remaining
             };
+            if (previousStatus !== current.status) {
+                document.dispatchEvent(new CustomEvent('timer-status-change', {
+                    detail: { status: current.status }
+                }));
+            }
             
             window.currentRound = current.current_round;
             
@@ -1888,6 +1897,30 @@
         let busy = false;
         let polling = false;
         let connected = false;
+        let timerMusicReady = false;
+        let pendingTimerMusic = null;
+        let syncingTimerMusic = false;
+
+        async function syncTimerMusic() {
+            if (!timerMusicReady || !connected || busy || syncingTimerMusic || pendingTimerMusic === null) return;
+            const shouldPlay = pendingTimerMusic;
+            pendingTimerMusic = null;
+            syncingTimerMusic = true;
+            try {
+                if (shouldPlay) {
+                    if (!playback.is_playing || playlistChanged) await sendSpotifyAction('play');
+                } else {
+                    await sendSpotifyAction('pause');
+                }
+            } finally {
+                syncingTimerMusic = false;
+            }
+        }
+
+        document.addEventListener('timer-status-change', event => {
+            pendingTimerMusic = event.detail.status === 'RUNNING';
+            syncTimerMusic();
+        });
         let commandRevision = 0;
         let settleUntil = 0;
         const buttons = [btnPlay, btnNext, btnPrev, btnShuffle, btnRepeat];
@@ -2087,7 +2120,8 @@
         setInterval(() => {
             if (connected) {
                 if (!document.hidden) renderPlayback();
-                syncRoundVolume();
+                syncTimerMusic();
+                if (pendingTimerMusic === null && !syncingTimerMusic) syncRoundVolume();
             }
         }, 250);
         setInterval(refreshPlayback, 5000);
@@ -2118,6 +2152,12 @@
                     loadSpotifyDevices(data.last_device_id)
                 ]);
                 await refreshPlayback();
+                timerMusicReady = true;
+                const status = window.lastRenderedState?.status;
+                if (status === 'RUNNING' || status === 'PAUSED' || status === 'DONE') {
+                    pendingTimerMusic = status === 'RUNNING';
+                }
+                await syncTimerMusic();
             } catch (e) {
                 showSpotifyError(`Unable to check Spotify connection: ${e.message}`);
             }

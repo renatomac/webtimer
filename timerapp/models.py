@@ -153,6 +153,7 @@ class Timer(models.Model):
     current_state = models.CharField(max_length=10, choices=STATE_CHOICES, default="WORK")
     time_remaining = models.PositiveIntegerField(null=True, blank=True)
     last_started_at = models.DateTimeField(null=True, blank=True)
+    last_used_at = models.DateTimeField(null=True, blank=True)
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
 

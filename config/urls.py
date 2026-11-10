@@ -11,7 +11,7 @@ urlpatterns = [
     path("accounts/login/", auth_views.LoginView.as_view(), name="login"),
     path("accounts/logout/", auth_views.LogoutView.as_view(), name="logout"),
     path("cast-receiver/", never_cache(TemplateView.as_view(template_name="timerapp/cast_receiver.html")), name="cast_receiver"),
-    path("", RedirectView.as_view(pattern_name="timers:list", permanent=False)),
+    path("", RedirectView.as_view(pattern_name="timers:home", permanent=False)),
     path("timers/", include(("timerapp.clone_urls", "timers"), namespace="timers")),
     path("legacy/", include("timerapp.urls")),
 ]

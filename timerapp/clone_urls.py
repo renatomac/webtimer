@@ -5,6 +5,7 @@ from . import timer_views
 app_name = "timers"
 
 urlpatterns = [
+    path("open/", timer_views.timer_home, name="home"),
     path("", timer_views.TimerListView.as_view(), name="list"),
     path("create/", timer_views.TimerCreateView.as_view(), name="create"),
     path("<int:pk>/edit/", timer_views.TimerUpdateView.as_view(), name="edit"),
