@@ -28,10 +28,23 @@ body:has(.timer-app-wrapper) > .nav { flex-shrink: 0; }
 .timer-app-wrapper .round-indicator { font-size: clamp(1rem, 2vw, 1.6rem); }
 .timer-app-wrapper .round-pills { max-width: 100%; gap: 7px; }
 .timer-app-wrapper .round-dot { width: 12px; height: 12px; }
-#timerPlayerLayout .timer-display-wrapper { margin: 0; min-width: 0; width: fit-content; max-width: 100%; display: grid; gap: 18px; }
+#timerPlayerLayout .timer-display-wrapper {
+  margin: 0;
+  min-width: 0;
+  width: fit-content;
+  max-width: 100%;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  justify-items: stretch;
+  gap: 18px;
+  grid-column: 1;
+  grid-row: 2;
+}
+#timerPlayerLayout .timer-display-wrapper > #timerDisplay { grid-column: 1; grid-row: 1; text-align: center; }
+#timerPlayerLayout .timer-display-wrapper > .progress-container { grid-column: 1; grid-row: 2; }
 #timerDisplay { font-size: clamp(3rem, 26cqi, 14rem) !important; line-height: 1; letter-spacing: -.045em; }
 .timer-app-wrapper .progress-container { width: 100%; height: 9px; margin: 0; }
-.timer-app-wrapper .controls-wrapper { margin: 10px 0 0; gap: 18px; flex-wrap: nowrap; }
+.timer-app-wrapper .controls-wrapper { margin: 10px 0 0; gap: 18px; flex-wrap: nowrap; grid-column: 1; grid-row: 3; }
 .timer-app-wrapper .btn-timer { min-width: 0; width: 180px; min-height: 64px; font-size: 1.5rem; padding: 14px 24px; }
 .timer-app-wrapper #castbutton { flex: 0 0 44px; width: 44px; height: 44px; }
 .timer-app-wrapper .timer-side-panel { justify-content: center; gap: 14px; text-align: left; }

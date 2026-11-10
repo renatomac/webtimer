@@ -111,6 +111,12 @@ redirects to the new timer library.
    - URL `/media/` → directory `/home/<user>/webtimer-media`
 6. Click **Reload**, then create a user and timer as described above.
 
+For later updates, pull the changes and run `python manage.py collectstatic --noinput`
+with the same `DJANGO_STATIC_ROOT` used by the Web tab's `/static/` mapping, then
+click **Reload**. Reloading Django alone does not update PythonAnywhere's served
+CSS files. The timer layout stylesheet has a version query parameter to refresh
+browser caches; increment it whenever that stylesheet changes.
+
 ## Manual verification
 
 1. Create a 2-round timer with a 10-second work phase and 5-second rest. Verify the total
