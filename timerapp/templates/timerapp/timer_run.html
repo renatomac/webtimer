@@ -1,0 +1,2128 @@
+{% extends "timerapp/base.html" %}
+{% load static %}
+
+{% block title %}{{ timer.name }} · Timer{% endblock %}
+{% block header_title %}{{ timer.name }}{% endblock %}
+
+{% block extra_head %}
+<link rel="stylesheet" href="{% static 'timerapp/timer_coaching.css' %}">
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.7.2/css/all.min.css">
+<!-- High-contrast athletic & digital fonts -->
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Chakra+Petch:wght@500;700&family=Oswald:wght@600;700&family=Share+Tech+Mono&display=swap" rel="stylesheet">
+
+<style>
+    /* ==========================================================================
+       Timer Modern Dark & Responsive Design System
+       ========================================================================== */
+    :root {
+        --timer-bg: #0d1117;
+        --timer-card-bg: rgba(22, 27, 34, 0.95);
+        --timer-card-border: rgba(255, 255, 255, 0.08);
+        --color-work: #10b981;
+        --color-work-glow: rgba(16, 185, 129, 0.35);
+        --color-rest: #ef4444;
+        --color-rest-glow: rgba(239, 68, 68, 0.35);
+        --color-paused: #eab308;
+        --color-paused-glow: rgba(234, 179, 8, 0.25);
+        --color-ready: #94a3b8;
+        --color-ready-glow: rgba(148, 163, 184, 0.2);
+        --color-done: #38bdf8;
+        --color-done-glow: rgba(56, 189, 248, 0.35);
+    }
+
+    /* Outer Wrapper */
+    .timer-app-wrapper {
+        width: 100%;
+        max-width: 1000px;
+        margin: 0 auto;
+        transition: all 0.3s ease;
+    }
+
+    /* Main Timer Box */
+    .timer-card {
+        background: var(--timer-card-bg);
+        border: 1px solid var(--timer-card-border);
+        border-radius: clamp(16px, 2.5vw, 28px);
+        box-shadow: 0 20px 40px -15px rgba(0, 0, 0, 0.7), 0 0 50px -10px var(--glow-current, rgba(0,0,0,0.2));
+        color: #f1f5f9;
+        overflow: hidden;
+        position: relative;
+        backdrop-filter: blur(12px);
+        -webkit-backdrop-filter: blur(12px);
+        transition: box-shadow 0.4s ease, border-color 0.4s ease;
+    }
+
+    .timer-card.state-work {
+        --glow-current: var(--color-work-glow);
+        border-color: rgba(16, 185, 129, 0.4);
+    }
+    .timer-card.state-rest {
+        --glow-current: var(--color-rest-glow);
+        border-color: rgba(239, 68, 68, 0.4);
+    }
+    .timer-card.state-paused {
+        --glow-current: var(--color-paused-glow);
+        border-color: rgba(234, 179, 8, 0.3);
+    }
+    .timer-card.state-ready {
+        --glow-current: var(--color-ready-glow);
+        border-color: var(--timer-card-border);
+    }
+    .timer-card.state-done {
+        --glow-current: var(--color-done-glow);
+        border-color: rgba(56, 189, 248, 0.4);
+    }
+
+    /* Top Utility Toolbar */
+    .timer-toolbar {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        padding: clamp(0.75rem, 2vmin, 1.25rem) clamp(1rem, 3vmin, 2rem);
+        border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+        background: rgba(0, 0, 0, 0.2);
+    }
+
+    .timer-title {
+        font-family: 'Oswald', sans-serif;
+        font-size: clamp(1rem, 2.5vmin, 1.4rem);
+        font-weight: 600;
+        letter-spacing: 0.5px;
+        color: #e2e8f0;
+        margin: 0;
+        display: flex;
+        align-items: center;
+        gap: 8px;
+    }
+
+    .toolbar-tools {
+        display: flex;
+        align-items: center;
+        gap: clamp(6px, 1.5vmin, 12px);
+    }
+
+    .tool-btn {
+        background: rgba(255, 255, 255, 0.08);
+        color: #cbd5e1;
+        border: 1px solid rgba(255, 255, 255, 0.12);
+        border-radius: 8px;
+        padding: clamp(6px, 1.2vmin, 8px) clamp(10px, 1.8vmin, 14px);
+        font-size: clamp(0.8rem, 1.8vmin, 1rem);
+        cursor: pointer;
+        display: inline-flex;
+        align-items: center;
+        gap: 6px;
+        transition: all 0.2s ease;
+        text-decoration: none;
+        user-select: none;
+    }
+    .tool-btn:hover {
+        background: rgba(255, 255, 255, 0.18);
+        color: #fff;
+        border-color: rgba(255, 255, 255, 0.25);
+    }
+    .tool-btn.active {
+        background: rgba(16, 185, 129, 0.25);
+        color: #34d399;
+        border-color: rgba(16, 185, 129, 0.5);
+    }
+    .tool-btn.muted {
+        background: rgba(239, 68, 68, 0.2);
+        color: #f87171;
+        border-color: rgba(239, 68, 68, 0.4);
+    }
+
+    /* Screen Wake Lock Badge */
+    .wakelock-badge {
+        font-size: clamp(0.7rem, 1.4vmin, 0.85rem);
+        padding: 4px 10px;
+        border-radius: 20px;
+        background: rgba(255, 255, 255, 0.06);
+        color: #94a3b8;
+        border: 1px solid rgba(255, 255, 255, 0.08);
+        display: inline-flex;
+        align-items: center;
+        gap: 6px;
+        transition: all 0.3s ease;
+        cursor: pointer;
+        user-select: none;
+    }
+    .wakelock-badge.active {
+        background: rgba(16, 185, 129, 0.15);
+        color: #10b981;
+        border-color: rgba(16, 185, 129, 0.3);
+    }
+    .wakelock-dot {
+        width: 7px;
+        height: 7px;
+        border-radius: 50%;
+        background-color: #64748b;
+        transition: background-color 0.3s ease;
+    }
+    .wakelock-badge.active .wakelock-dot {
+        background-color: #10b981;
+        box-shadow: 0 0 8px #10b981;
+        animation: pulseDot 2s infinite ease-in-out;
+    }
+    @keyframes pulseDot {
+        0%, 100% { opacity: 1; transform: scale(1); }
+        50% { opacity: 0.5; transform: scale(0.85); }
+    }
+
+    /* Wall Clock — roughly 1/3 the size of the main countdown digits */
+    .wall-clock {
+        font-family: 'Share Tech Mono', monospace;
+        font-size: clamp(1.5rem, 7.3vmin, 5.3rem);
+        font-weight: 700;
+        color: #cbd5e1;
+        letter-spacing: clamp(-1px, -0.15vmin, -2px);
+        display: inline-flex;
+        align-items: center;
+        gap: clamp(6px, 1.5vmin, 14px);
+        font-variant-numeric: tabular-nums;
+        white-space: nowrap;
+        line-height: 1;
+        margin-bottom: clamp(0.5rem, 1.5vmin, 1.25rem);
+        text-shadow: 0 0 20px rgba(0, 0, 0, 0.6);
+    }
+    .wall-clock i {
+        font-size: 0.4em;
+        color: #64748b;
+    }
+
+    /* Main Display Area */
+    .timer-core-section {
+        padding: clamp(1.5rem, 4vmin, 3.5rem) clamp(1rem, 3vmin, 2.5rem);
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        text-align: center;
+    }
+
+    /* Status & Phase Badge */
+    .phase-badge {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        padding: clamp(6px, 1.2vmin, 10px) clamp(18px, 3vmin, 32px);
+        border-radius: 9999px;
+        font-family: 'Oswald', sans-serif;
+        font-size: clamp(1.2rem, 3.5vmin, 2.2rem);
+        font-weight: 700;
+        letter-spacing: clamp(2px, 0.5vmin, 4px);
+        text-transform: uppercase;
+        margin-bottom: clamp(0.5rem, 1.5vmin, 1rem);
+        transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+        min-width: clamp(140px, 25vmin, 220px);
+    }
+    .phase-badge.state-work {
+        background: rgba(16, 185, 129, 0.15);
+        color: #10b981;
+        border: 1px solid rgba(16, 185, 129, 0.4);
+        box-shadow: 0 0 20px rgba(16, 185, 129, 0.2);
+    }
+    .phase-badge.state-rest {
+        background: rgba(239, 68, 68, 0.15);
+        color: #ef4444;
+        border: 1px solid rgba(239, 68, 68, 0.4);
+        box-shadow: 0 0 20px rgba(239, 68, 68, 0.2);
+    }
+    .phase-badge.state-paused {
+        background: rgba(234, 179, 8, 0.15);
+        color: #eab308;
+        border: 1px solid rgba(234, 179, 8, 0.4);
+        box-shadow: 0 0 15px rgba(234, 179, 8, 0.15);
+    }
+    .phase-badge.state-ready {
+        background: rgba(148, 163, 184, 0.12);
+        color: #94a3b8;
+        border: 1px solid rgba(148, 163, 184, 0.25);
+    }
+    .phase-badge.state-done {
+        background: rgba(56, 189, 248, 0.15);
+        color: #38bdf8;
+        border: 1px solid rgba(56, 189, 248, 0.4);
+        box-shadow: 0 0 25px rgba(56, 189, 248, 0.25);
+    }
+
+    /* Round Tracker */
+    .round-meta-container {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        gap: 6px;
+        margin-bottom: clamp(0.5rem, 1.5vmin, 1.25rem);
+    }
+    .round-indicator {
+        font-family: 'Chakra Petch', sans-serif;
+        font-size: clamp(1rem, 2.8vmin, 1.75rem);
+        font-weight: 600;
+        color: #94a3b8;
+        letter-spacing: 1px;
+    }
+    .round-pills {
+        display: flex;
+        flex-wrap: wrap;
+        justify-content: center;
+        gap: clamp(4px, 1vmin, 8px);
+        max-width: 90%;
+        margin-top: 4px;
+    }
+    .round-dot {
+        width: clamp(8px, 1.8vmin, 14px);
+        height: clamp(8px, 1.8vmin, 14px);
+        border-radius: 50%;
+        background: rgba(255, 255, 255, 0.12);
+        transition: all 0.3s ease;
+    }
+    .round-dot.completed {
+        background: #10b981;
+        box-shadow: 0 0 6px rgba(16, 185, 129, 0.6);
+    }
+    .round-dot.current {
+        background: #f1f5f9;
+        transform: scale(1.25);
+        box-shadow: 0 0 8px #ffffff;
+    }
+
+    /* Giant Digital Countdown */
+    .timer-display-wrapper {
+        position: relative;
+        width: 100%;
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        margin: clamp(0.5rem, 1.5vmin, 1.5rem) 0;
+    }
+    .timer-display {
+        font-family: 'Share Tech Mono', monospace;
+        font-variant-numeric: tabular-nums;
+        font-size: clamp(4.5rem, 22vmin, 16rem);
+        font-weight: 700;
+        line-height: 0.95;
+        letter-spacing: clamp(-2px, -0.4vmin, -8px);
+        color: #ffffff;
+        text-shadow: 0 0 30px rgba(0, 0, 0, 0.8);
+        transition: color 0.3s ease, text-shadow 0.3s ease;
+        user-select: none;
+    }
+    .timer-display.state-work {
+        color: #10b981;
+        text-shadow: 0 0 clamp(20px, 4vmin, 60px) rgba(16, 185, 129, 0.4);
+    }
+    .timer-display.state-rest {
+        color: #ef4444;
+        text-shadow: 0 0 clamp(20px, 4vmin, 60px) rgba(239, 68, 68, 0.4);
+    }
+    .timer-display.state-paused {
+        color: #eab308;
+        text-shadow: 0 0 clamp(15px, 3vmin, 40px) rgba(234, 179, 8, 0.3);
+    }
+    .timer-display.state-ready {
+        color: #cbd5e1;
+    }
+    .timer-display.state-done {
+        color: #38bdf8;
+        text-shadow: 0 0 clamp(25px, 5vmin, 70px) rgba(56, 189, 248, 0.5);
+    }
+
+    /* Interval Progress Bar */
+    .progress-container {
+        width: min(90%, 650px);
+        height: clamp(6px, 1.4vmin, 12px);
+        background: rgba(255, 255, 255, 0.08);
+        border-radius: 9999px;
+        overflow: hidden;
+        margin-top: clamp(0.5rem, 1.5vmin, 1.5rem);
+        box-shadow: inset 0 2px 4px rgba(0, 0, 0, 0.4);
+    }
+    .progress-bar-fill {
+        height: 100%;
+        width: 100%;
+        border-radius: 9999px;
+        background: #10b981;
+        transition: width 0.15s linear, background-color 0.4s ease;
+        box-shadow: 0 0 10px currentColor;
+    }
+    .progress-bar-fill.state-work { background: #10b981; }
+    .progress-bar-fill.state-rest { background: #ef4444; }
+    .progress-bar-fill.state-paused { background: #eab308; }
+    .progress-bar-fill.state-ready { background: #64748b; }
+    .progress-bar-fill.state-done { background: #38bdf8; }
+
+    /* Action Control Buttons - Large & Touch Friendly */
+    .controls-wrapper {
+        display: flex;
+        flex-wrap: wrap;
+        justify-content: center;
+        align-items: center;
+        gap: clamp(10px, 2.5vmin, 24px);
+        margin-top: clamp(1.5rem, 3.5vmin, 3rem);
+        width: 100%;
+    }
+
+    .btn-timer {
+        font-family: 'Oswald', sans-serif;
+        font-size: clamp(1.1rem, 2.8vmin, 1.65rem);
+        font-weight: 600;
+        letter-spacing: 1px;
+        padding: clamp(0.75rem, 2vmin, 1.25rem) clamp(1.5rem, 4.5vmin, 3.25rem);
+        border-radius: clamp(12px, 2vmin, 18px);
+        border: none;
+        cursor: pointer;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        gap: clamp(8px, 1.5vmin, 12px);
+        box-shadow: 0 8px 20px -4px rgba(0, 0, 0, 0.5);
+        transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+        min-width: clamp(130px, 24vmin, 200px);
+        user-select: none;
+        outline: none;
+    }
+    .btn-timer:hover:not(:disabled) {
+        transform: translateY(-2px);
+        box-shadow: 0 12px 25px -4px rgba(0, 0, 0, 0.65);
+    }
+    .btn-timer:active:not(:disabled) {
+        transform: translateY(1px);
+        box-shadow: 0 4px 10px -2px rgba(0, 0, 0, 0.5);
+    }
+    .btn-timer:disabled {
+        opacity: 0.45;
+        cursor: not-allowed;
+        transform: none;
+    }
+
+    .btn-timer-start {
+        background: linear-gradient(135deg, #10b981 0%, #059669 100%);
+        color: #ffffff;
+    }
+    .btn-timer-start:hover:not(:disabled) {
+        background: linear-gradient(135deg, #34d399 0%, #10b981 100%);
+    }
+
+    .btn-timer-pause {
+        background: linear-gradient(135deg, #f59e0b 0%, #d97706 100%);
+        color: #ffffff;
+    }
+    .btn-timer-pause:hover:not(:disabled) {
+        background: linear-gradient(135deg, #fbbf24 0%, #f59e0b 100%);
+    }
+
+    .btn-timer-reset {
+        background: linear-gradient(135deg, #ef4444 0%, #dc2626 100%);
+        color: #ffffff;
+    }
+    .btn-timer-reset:hover:not(:disabled) {
+        background: linear-gradient(135deg, #f87171 0%, #ef4444 100%);
+    }
+
+    /* Google Cast Launcher Integration */
+    google-cast-launcher {
+        --connected-color: #38bdf8;
+        --disconnected-color: #cbd5e1;
+        width: clamp(38px, 6vmin, 52px);
+        height: clamp(38px, 6vmin, 52px);
+        padding: 6px;
+        background: rgba(255, 255, 255, 0.08);
+        border: 1px solid rgba(255, 255, 255, 0.15);
+        border-radius: clamp(10px, 1.8vmin, 14px);
+        cursor: pointer;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        transition: all 0.2s ease;
+    }
+    google-cast-launcher:hover {
+        background: rgba(255, 255, 255, 0.16);
+        border-color: rgba(255, 255, 255, 0.3);
+    }
+
+    /* Spotify Playlist & Playback Controls */
+    .spotify-panel {
+        flex-shrink: 0;
+        margin-top: clamp(1.5rem, 3vmin, 2.5rem);
+        width: min(100%, 650px);
+        background: rgba(255, 255, 255, 0.04);
+        border: 1px solid rgba(255, 255, 255, 0.08);
+        border-radius: 16px;
+        padding: clamp(0.75rem, 2vmin, 1.25rem);
+        display: flex;
+        flex-direction: column;
+        gap: 10px;
+    }
+    .spotify-panel-header {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        flex-wrap: wrap;
+        gap: 8px;
+    }
+    .spotify-brand {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        font-family: 'Oswald', sans-serif;
+        font-weight: 600;
+        color: #1db954;
+        letter-spacing: 0.5px;
+    }
+    .spotify-connect-btn {
+        background: #1db954;
+        color: #fff;
+        border: none;
+        border-radius: 20px;
+        padding: 8px 18px;
+        font-weight: 600;
+        cursor: pointer;
+        display: inline-flex;
+        align-items: center;
+        gap: 8px;
+        text-decoration: none;
+    }
+    .spotify-connect-btn:hover { background: #1ed760; color: #fff; }
+    .spotify-controls-row {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 10px;
+        align-items: center;
+    }
+    .spotify-device-row {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        width: 100%;
+    }
+    .spotify-select {
+        flex: 1;
+        min-width: 160px;
+        background: rgba(255, 255, 255, 0.06);
+        color: #e2e8f0;
+        border: 1px solid rgba(255, 255, 255, 0.15);
+        border-radius: 10px;
+        padding: 8px 10px;
+        font-size: 0.9rem;
+    }
+    .spotify-select option { color: #111; }
+    .spotify-icon-btn {
+        background: rgba(255, 255, 255, 0.08);
+        color: #cbd5e1;
+        border: 1px solid rgba(255, 255, 255, 0.15);
+        border-radius: 50%;
+        width: 42px;
+        height: 42px;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        cursor: pointer;
+        transition: all 0.2s ease;
+    }
+    .spotify-refresh-btn {
+        flex: 0 0 38px;
+        width: 38px;
+        height: 38px;
+    }
+    .spotify-icon-btn:hover { background: rgba(29, 185, 84, 0.25); color: #1db954; border-color: #1db954; }
+    .spotify-icon-btn.play {
+        background: #1db954;
+        color: #fff;
+        border-color: #1db954;
+        width: 52px;
+        height: 52px;
+        font-size: 1.2rem;
+    }
+    .spotify-icon-btn.play:hover { background: #1ed760; }
+    .spotify-status-text { font-size: 0.8rem; color: #94a3b8; }
+    .spotify-icon-btn.active { color: #1db954; }
+    .spotify-icon-btn:disabled { opacity: .4; cursor: default; }
+    .spotify-seek-row { display: flex; align-items: center; gap: 10px; font-size: .8rem; }
+    #spotifySeek { flex: 1; min-width: 0; accent-color: #1db954; }
+    .spotify-disconnect-link { color: #94a3b8; font-size: 0.8rem; text-decoration: underline; cursor: pointer; }
+
+    /* Bottom Info & Shortcuts hint */
+    .timer-footer {
+        padding: clamp(0.75rem, 1.8vmin, 1.25rem) clamp(1rem, 3vmin, 2rem);
+        background: rgba(0, 0, 0, 0.25);
+        border-top: 1px solid rgba(255, 255, 255, 0.06);
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        font-size: clamp(0.75rem, 1.6vmin, 0.95rem);
+        color: #64748b;
+    }
+
+    .shortcut-hints {
+        display: flex;
+        gap: 12px;
+    }
+    .shortcut-kbd {
+        background: rgba(255, 255, 255, 0.08);
+        color: #94a3b8;
+        padding: 2px 6px;
+        border-radius: 4px;
+        font-family: monospace;
+        font-size: 0.8em;
+        border: 1px solid rgba(255, 255, 255, 0.1);
+    }
+
+    /* ==========================================================================
+       Fullscreen Immersion Mode (Native + CSS Fallback for all devices)
+       ========================================================================== */
+    body.timer-in-fullscreen {
+        overflow: hidden !important;
+    }
+
+    :fullscreen .timer-card,
+    :-webkit-full-screen .timer-card,
+    .timer-card:fullscreen,
+    .timer-card:-webkit-full-screen,
+    .timer-card.is-fullscreen {
+        position: fixed !important;
+        top: 0 !important;
+        left: 0 !important;
+        right: 0 !important;
+        bottom: 0 !important;
+        width: 100vw !important;
+        height: 100vh !important;
+        max-width: 100vw !important;
+        max-height: 100vh !important;
+        border-radius: 0 !important;
+        border: none !important;
+        z-index: 99999 !important;
+        display: flex !important;
+        flex-direction: column !important;
+        justify-content: space-between !important;
+        background: #06090e !important;
+        margin: 0 !important;
+    }
+
+    :fullscreen .timer-core-section,
+    :-webkit-full-screen .timer-core-section,
+    .timer-card:fullscreen .timer-core-section,
+    .timer-card:-webkit-full-screen .timer-core-section,
+    .timer-card.is-fullscreen .timer-core-section {
+        flex: 1 1 0 !important;
+        min-height: 0 !important;
+        overflow-y: auto !important;
+        display: flex !important;
+        flex-direction: column !important;
+        justify-content: flex-start !important;
+        padding: clamp(1rem, 3vmin, 2.5rem) !important;
+    }
+
+    :fullscreen .timer-display,
+    :-webkit-full-screen .timer-display,
+    .timer-card:fullscreen .timer-display,
+    .timer-card:-webkit-full-screen .timer-display,
+    .timer-card.is-fullscreen .timer-display {
+        font-size: clamp(6rem, 28vmin, 24rem) !important;
+    }
+
+    :fullscreen .wall-clock,
+    :-webkit-full-screen .wall-clock,
+    .timer-card:fullscreen .wall-clock,
+    .timer-card:-webkit-full-screen .wall-clock,
+    .timer-card.is-fullscreen .wall-clock {
+        font-size: clamp(2rem, 9.3vmin, 8rem) !important;
+    }
+
+    .timer-card.is-fullscreen .timer-core-section > * { flex-shrink: 0; }
+    .timer-toolbar, .timer-footer { flex-shrink: 0; }
+
+    /* Timer and music share the fullscreen card, with independent columns. */
+    .timer-app-wrapper { max-width: 1440px; container-type: inline-size; }
+    .timer-player-layout {
+        position: relative;
+        display: grid;
+        grid-template-columns: minmax(0, 1fr);
+        width: 100%;
+        box-sizing: border-box;
+        container-type: inline-size;
+        align-items: center;
+        gap: 20px;
+        padding: 16px;
+        min-height: 0;
+    }
+    .timer-player-layout .timer-core-section { min-width: 0; padding: 12px; container-type: inline-size; }
+    #timerDisplay { font-size: clamp(2rem, 28cqi, 16rem) !important; white-space: nowrap; }
+    @container (min-width: 900px) {
+        .timer-player-layout:has(> .timer-side-panel:not([hidden])) { grid-template-columns: minmax(0, 1fr) 340px; }
+    }
+    .timer-checkmat-logo {
+        display: block;
+        width: clamp(56px, 10vw, 96px);
+        height: auto;
+        margin: 0 auto 8px;
+    }
+    .timer-player-layout .spotify-panel { margin: 0; width: 100%; min-width: 0; }
+    .spotify-selectors { flex-direction: column; align-items: stretch; }
+    .spotify-selectors .spotify-select { width: 100%; min-width: 0; }
+    .spotify-panel .spotify-controls-row { gap: 8px; }
+    .spotify-panel .spotify-icon-btn { flex-shrink: 0; }
+    .timer-card.is-fullscreen .timer-player-layout,
+    .timer-card:fullscreen .timer-player-layout,
+    .timer-card:-webkit-full-screen .timer-player-layout {
+        flex: 1 1 0;
+        overflow-y: auto;
+        align-items: center;
+    }
+    .timer-card.is-fullscreen .timer-player-layout .timer-core-section,
+    .timer-card:fullscreen .timer-player-layout .timer-core-section,
+    .timer-card:-webkit-full-screen .timer-player-layout .timer-core-section {
+        overflow: visible !important;
+        padding: 12px !important;
+    }
+    .timer-card.is-fullscreen .timer-display,
+    .timer-card:fullscreen .timer-display,
+    .timer-card:-webkit-full-screen .timer-display { font-size: clamp(4rem, 20vmin, 18rem) !important; }
+    .timer-card.is-fullscreen .wall-clock,
+    .timer-card:fullscreen .wall-clock,
+    .timer-card:-webkit-full-screen .wall-clock { font-size: clamp(1.5rem, 5vmin, 4rem) !important; }
+    @media (max-width: 900px) {
+        .timer-player-layout { grid-template-columns: minmax(0, 1fr); }
+        .timer-player-layout .spotify-panel { max-width: 650px; justify-self: center; }
+    }
+    @media (max-height: 700px) and (min-width: 901px) {
+        .timer-player-layout { padding: 8px; gap: 12px; }
+        .timer-card.is-fullscreen .timer-display,
+        .timer-card:fullscreen .timer-display,
+        .timer-card:-webkit-full-screen .timer-display { font-size: clamp(4rem, 17vh, 10rem) !important; }
+        .timer-player-layout .wall-clock { margin-bottom: 8px; }
+        .timer-player-layout .phase-badge, .timer-player-layout .round-meta-container { margin-bottom: 8px; }
+        .timer-player-layout .controls-wrapper { margin-top: 12px; }
+    }
+
+    /* Mobile landscape optimization */
+    @media (max-height: 520px) and (orientation: landscape) {
+        .timer-toolbar { padding: 4px 16px; }
+        .timer-core-section { padding: 6px 16px; }
+        .wall-clock { font-size: clamp(1.2rem, 8vh, 2.2rem) !important; margin-bottom: 2px; }
+        .phase-badge { margin-bottom: 2px; font-size: 1.1rem; padding: 2px 14px; min-width: auto; }
+        .round-meta-container { margin-bottom: 2px; }
+        .round-indicator { font-size: 0.95rem; }
+        .round-pills { display: none; }
+        .timer-display { font-size: clamp(3.5rem, 22vh, 6rem) !important; margin: 2px 0; }
+        .progress-container { margin-top: 4px; height: 5px; }
+        .controls-wrapper { margin-top: 6px; gap: 8px; }
+        .btn-timer { font-size: 1rem; padding: 6px 18px; min-width: 100px; }
+        .timer-footer { padding: 4px 16px; font-size: 0.75rem; }
+        .shortcut-hints { display: none; }
+    }
+</style>
+<link rel="stylesheet" href="{% static 'timerapp/timer_screen.css' %}">
+{% endblock %}
+
+{% block content %}
+<!-- Hidden CSRF token element for reliable POST requests -->
+<form id="csrfForm" style="display:none;">{% csrf_token %}</form>
+
+<div class="timer-app-wrapper py-2 py-md-4">
+    <div id="timerCard" class="timer-card state-ready">
+        
+        <!-- Header / Controls Bar -->
+        <div class="timer-toolbar">
+            <div class="d-flex align-items-center gap-2">
+                <a href="{% url 'timers:list' %}" class="tool-btn" title="Back to Timers">
+                    <i class="fas fa-arrow-left"></i> <span class="d-none d-sm-inline">Back</span>
+                </a>
+                <h1 class="timer-title mb-0">
+                    <i class="fas fa-stopwatch text-muted"></i>
+                    <span>{{ timer.name }}</span>
+                </h1>
+            </div>
+
+            <!-- Live Wall Clock -->
+            <div id="wallClock" class="wall-clock" title="Current time">
+                <i class="far fa-clock"></i>
+                <span id="wallClockText">--:--:--</span>
+            </div>
+
+            <div class="toolbar-tools">
+                <!-- Screen Wake Lock Status Indicator -->
+                <button type="button" id="wakeLockBadge" class="wakelock-badge" aria-pressed="false" title="Tap to toggle screen wake lock (keeps device screen on)">
+                    <span class="wakelock-dot"></span>
+                    <i class="fas fa-sun"></i>
+                    <span class="d-none d-md-inline" id="wakeLockStatusText">Screen Normal</span>
+                </button>
+
+                <button type="button" id="btnMusicToggle" class="tool-btn" aria-controls="timerSidePanel" aria-expanded="true" title="Show or hide music and timer selection"><i class="fas fa-music" aria-hidden="true"></i><span class="d-none d-sm-inline">Music</span></button>
+                <button type="button" id="btnTestSound" class="tool-btn" title="Test timer sound">Test sound</button>
+                <!-- Sound Toggle -->
+                <button type="button" id="btnSoundToggle" class="tool-btn" title="Toggle Sound / Audio Chime (M)" aria-label="Toggle timer sound" aria-pressed="true">
+                    <i id="soundIcon" class="fas fa-volume-up"></i>
+                </button>
+
+                <!-- Fullscreen Toggle Button -->
+                <button type="button" id="btnFullscreenToggle" class="tool-btn" title="Toggle Fullscreen Mode (F)">
+                    <i id="fsIcon" class="fas fa-expand"></i>
+                    <span class="d-none d-sm-inline" id="fsText">Coaching mode</span>
+                </button>
+            </div>
+        </div>
+
+        <div id="timerPlayerLayout" class="timer-player-layout" data-layout-version="spotify-side-v2">
+        <!-- Core Display Stage -->
+        <div class="timer-core-section">
+            <img class="timer-checkmat-logo" src="{% static 'timerapp/checkmat200x200.png' %}" alt="Checkmat" width="200" height="200">
+
+            <div class="timer-stage-heading">
+            <!-- Phase Badge -->
+            <div id="statusBadge" class="phase-badge state-ready">
+                READY
+            </div>
+
+            <!-- Round Meta & Indicators -->
+            <div class="round-meta-container">
+                <div id="roundText" class="round-indicator">
+                    Round 1 of {{ timer.rounds }}
+                </div>
+                <div id="roundPills" class="round-pills">
+                    <!-- Dynamic round dots generated by JS -->
+                </div>
+            </div>
+
+            </div>
+
+            <!-- Big Countdown Digits -->
+            <div class="timer-display-wrapper">
+                <div id="timerDisplay" class="timer-display state-ready">
+                    00:00
+                </div>
+            </div>
+
+            <!-- Interval Progress Bar -->
+            <div class="progress-container">
+                <div id="progressBar" class="progress-bar-fill state-ready" style="width: 100%;"></div>
+            </div>
+
+            <!-- Action Control Buttons -->
+            <div class="controls-wrapper">
+                <button type="button" id="btnStart" class="btn-timer btn-timer-start" title="Start Timer (Space)">
+                    <i class="fas fa-play"></i> <span>START</span>
+                </button>
+                <button type="button" id="btnPause" class="btn-timer btn-timer-pause d-none" title="Pause Timer (Space)">
+                    <i class="fas fa-pause"></i> <span>PAUSE</span>
+                </button>
+                <button type="button" id="btnReset" class="btn-timer btn-timer-reset" title="Reset Timer (R)">
+                    <i class="fas fa-redo"></i> <span>RESET</span>
+                </button>
+
+                <!-- Google Cast Launcher Web Component -->
+                <google-cast-launcher id="castbutton" title="Cast to TV / Display"></google-cast-launcher>
+            </div>
+
+        </div>
+
+            <!-- Spotify Music Controls -->
+            <div id="timerSidePanel" class="timer-side-panel">
+            <div class="spotify-panel" id="spotifyPanel">
+                <div class="spotify-panel-header">
+                    <div class="spotify-brand"><i class="fab fa-spotify"></i> Spotify</div>
+                    <div id="spotifyConnectedInfo" class="spotify-status-text d-none">
+                        Connected as <strong id="spotifyDisplayName"></strong> &middot;
+                        <form method="post" action="{% url 'timers:spotify_disconnect' %}?next={{ request.path }}" class="spotify-disconnect-form">
+                            {% csrf_token %}
+                            <button type="submit" class="spotify-disconnect-link">Disconnect</button>
+                        </form>
+                    </div>
+                </div>
+
+                {% if spotify_configured %}
+                <div id="spotifyDisconnectedState">
+                    <p id="spotifyConnectionStatus" class="spotify-status-text">Checking Spotify connection…</p>
+                    <a href="{% url 'timers:spotify_connect' %}?next={{ request.path }}" class="spotify-connect-btn">
+                        <i class="fab fa-spotify"></i> Connect Spotify
+                    </a>
+                    <p class="spotify-status-text mt-2 mb-0">Connect your Spotify Premium account to play a playlist during your workout.</p>
+                </div>
+
+                <div id="spotifyConnectedState" class="d-none">
+                    <div class="spotify-controls-row spotify-selectors" style="display:grid; grid-template-columns:minmax(0,1fr); gap:10px; width:100%;">
+                        <select id="spotifyPlaylistSelect" class="spotify-select" style="width:100%; min-width:0; display:block;" aria-label="Playlist">
+                            <option value="">Loading playlists&hellip;</option>
+                        </select>
+                        <div class="spotify-device-row">
+                            <select id="spotifyDeviceSelect" class="spotify-select" style="width:100%; min-width:0; display:block;" aria-label="Playback device">
+                                <option value="">Loading devices&hellip;</option>
+                            </select>
+                            <button type="button" id="btnSpotifyRefreshDevices" class="spotify-icon-btn spotify-refresh-btn" title="Refresh Spotify devices" aria-label="Refresh Spotify devices"><i class="fas fa-sync-alt" aria-hidden="true"></i></button>
+                        </div>
+                    </div>
+                    <p class="spotify-status-text mt-2 mb-0">Missing your phone or tablet? Open Spotify there with the connected account, play a song on that device, then refresh.</p>
+                    <p id="spotifyTrackInfo" class="spotify-status-text text-center mt-3 mb-2" aria-live="polite"></p>
+                    <div class="spotify-controls-row justify-content-center mt-2">
+                        <button type="button" id="btnSpotifyShuffle" class="spotify-icon-btn" title="Shuffle" aria-label="Shuffle" aria-pressed="false"><i class="fas fa-random"></i></button>
+                        <button type="button" id="btnSpotifyPrev" class="spotify-icon-btn" title="Previous Track" aria-label="Previous track"><i class="fas fa-step-backward"></i></button>
+                        <button type="button" id="btnSpotifyPlay" class="spotify-icon-btn play" title="Play" aria-label="Play"><i class="fas fa-play"></i></button>
+                        <button type="button" id="btnSpotifyNext" class="spotify-icon-btn" title="Next Track" aria-label="Next track"><i class="fas fa-step-forward"></i></button>
+                        <button type="button" id="btnSpotifyRepeat" class="spotify-icon-btn" title="Repeat off" aria-label="Repeat off" aria-pressed="false"><i class="fas fa-redo"></i><small id="spotifyRepeatOne" class="d-none">1</small></button>
+                    </div>
+                    <div class="spotify-seek-row mt-3">
+                        <span id="spotifyElapsed">0:00</span>
+                        <input id="spotifySeek" type="range" min="0" max="0" value="0" step="1000" aria-label="Song position" disabled>
+                        <span id="spotifyDuration">0:00</span>
+                    </div>
+                    <div class="spotify-seek-row mt-2">
+                        <label for="spotifyVolume">Spotify volume</label>
+                        <input id="spotifyVolume" type="range" min="0" max="100" value="0" disabled>
+                        <span id="spotifyVolumeValue">—</span>
+                    </div>
+                </div>
+                <p id="spotifyErrorText" role="alert" class="spotify-status-text text-danger mt-2 mb-0 d-none"></p>
+                {% else %}
+                <p class="spotify-status-text" role="status">Spotify controls are unavailable because Spotify is not configured on this server.</p>
+                {% endif %}
+            </div>
+
+            <section class="timer-switch-card" aria-labelledby="timerSwitchHeading">
+                <h2 id="timerSwitchHeading">Choose a timer</h2>
+                <label class="visually-hidden" for="timerQuickSelect">Timer name</label>
+                <select id="timerQuickSelect" class="spotify-select" aria-describedby="timerSwitchHelp">
+                    {% for choice in available_timers %}<option value="{% url 'timers:run' choice.pk %}" {% if choice.pk == timer.pk %}selected{% endif %}>{{ choice.name }}</option>{% endfor %}
+                </select>
+                <p id="timerSwitchHelp">Opening another timer does not stop the current workout.</p>
+            </section>
+            </div>
+        </div>
+
+        <p id="timerActionError" class="timer-action-error" role="alert" hidden></p>
+        <dialog id="timerConfirmation" class="timer-confirmation" aria-labelledby="timerConfirmationTitle" aria-describedby="timerConfirmationMessage">
+            <form method="dialog">
+                <h2 id="timerConfirmationTitle">Confirm timer action</h2>
+                <p id="timerConfirmationMessage"></p>
+                <div class="timer-confirmation-actions">
+                    <button type="submit" value="cancel" class="btn btn-outline-secondary" autofocus>Keep current workout</button>
+                    <button type="submit" value="confirm" class="btn btn-danger">Confirm</button>
+                </div>
+            </form>
+        </dialog>
+
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_scripts %}
+<!-- Google Cast SDK -->
+<script type="text/javascript" src="https://www.gstatic.com/cv/js/sender/v1/cast_sender.js?loadCastFramework=1"></script>
+
+<!-- Google Cast Logic -->
+<script>
+    const CUSTOM_APP_ID = '480DA752';
+    const CUSTOM_NAMESPACE = 'urn:x-cast:com.yourdomain.timer';
+    
+    let castSession = null;
+    window.timerSkewOffset = 0;
+
+    function parseDate(dateStr) {
+        if (!dateStr) return null;
+        const normalized = dateStr.replace(/\.(\d{1,3})\d*/, '.$1');
+        const d = new Date(normalized);
+        if (isNaN(d.getTime())) {
+            return new Date(dateStr.split('.')[0]);
+        }
+        return d;
+    }
+
+    function getTimerStateAt(state, targetTime) {
+        if (state.status !== 'RUNNING' || !state.last_started_at) {
+            return {
+                status: state.status,
+                current_state: state.current_state,
+                current_round: state.current_round,
+                time_remaining: state.time_remaining
+            };
+        }
+        
+        const lastStarted = parseDate(state.last_started_at);
+        if (!lastStarted || isNaN(lastStarted.getTime())) {
+            return {
+                status: state.status,
+                current_state: state.current_state,
+                current_round: state.current_round,
+                time_remaining: state.time_remaining
+            };
+        }
+        
+        let elapsed = Math.floor((targetTime - lastStarted) / 1000);
+        if (elapsed <= 0) {
+            return {
+                status: state.status,
+                current_state: state.current_state,
+                current_round: state.current_round,
+                time_remaining: state.time_remaining
+            };
+        }
+        
+        let status = state.status;
+        let current_state = state.current_state;
+        let current_round = state.current_round;
+        let time_remaining = state.time_remaining;
+        
+        while (elapsed > 0) {
+            if (elapsed < time_remaining) {
+                time_remaining -= elapsed;
+                elapsed = 0;
+            } else {
+                elapsed -= time_remaining;
+                if (current_state === 'WORK') {
+                    if (current_round < state.rounds) {
+                        current_state = 'REST';
+                        time_remaining = state.interval;
+                    } else {
+                        status = 'DONE';
+                        current_state = 'WORK';
+                        time_remaining = 0;
+                        elapsed = 0;
+                    }
+                } else { // REST
+                    current_state = 'WORK';
+                    current_round += 1;
+                    time_remaining = state.duration;
+                }
+            }
+        }
+        
+        return {
+            status,
+            current_state,
+            current_round,
+            time_remaining
+        };
+    }
+    
+    window.__onGCastApiAvailable = function(isAvailable) {
+        if (isAvailable) {
+            initializeCastApi();
+        }
+    };
+    
+    function initializeCastApi() {
+        const context = cast.framework.CastContext.getInstance();
+        context.setOptions({
+            receiverApplicationId: CUSTOM_APP_ID,
+            autoJoinPolicy: chrome.cast.AutoJoinPolicy.ORIGIN_SCOPED
+        });
+        
+        context.addEventListener(
+            cast.framework.CastContextEventType.SESSION_STATE_CHANGED,
+            (event) => {
+                if (event.sessionState === cast.framework.SessionState.SESSION_STARTED ||
+                    event.sessionState === cast.framework.SessionState.SESSION_RESUMED) {
+                    castSession = context.getCurrentSession();
+                    sendTimerUpdate();
+                } else if (event.sessionState === cast.framework.SessionState.SESSION_ENDED) {
+                    castSession = null;
+                }
+            }
+        );
+
+        castSession = context.getCurrentSession();
+        if (castSession) {
+            sendTimerUpdate();
+        }
+    }
+    
+    function sendTimerUpdate() {
+        if (!castSession || !window.localTimerState) return;
+        
+        const current = getTimerStateAt(window.localTimerState, new Date(Date.now() + (window.timerSkewOffset || 0)));
+        
+        let displayTime = current.time_remaining;
+        if (window.localTimerState.direction === 'UP' && current.current_state === 'WORK') {
+            displayTime = window.localTimerState.duration - current.time_remaining;
+        }
+        
+        const m = Math.floor(displayTime / 60);
+        const s = displayTime % 60;
+        const timeStr = `${m.toString().padStart(2, '0')}:${s.toString().padStart(2, '0')}`;
+        const isWarning = current.current_state === 'WORK' && displayTime < 10;
+        
+        let labelText = '';
+        if (current.status === 'READY') {
+            labelText = 'READY';
+        } else if (current.status === 'DONE') {
+            labelText = 'DONE';
+        } else {
+            labelText = `${current.current_state} - Round ${current.current_round}/${window.localTimerState.rounds}`;
+        }
+        
+        const payload = Object.assign({}, window.localTimerState, {
+            time: timeStr,
+            label: labelText,
+            warning: isWarning,
+            server_time: Date.now() + (window.timerSkewOffset || 0)
+        });
+        
+        castSession.sendMessage(CUSTOM_NAMESPACE, payload)
+            .then(() => console.log('Timer state synced with TV'))
+            .catch(err => console.error('Send state failed:', err));
+    }
+</script>
+
+{{ timer.to_dict|json_script:"timer-state-data" }}
+
+<!-- Main Timer Script -->
+<script>
+    document.addEventListener('DOMContentLoaded', () => {
+        // UI Elements
+        const timerCard = document.getElementById('timerCard');
+        const display = document.getElementById('timerDisplay');
+        const statusBadge = document.getElementById('statusBadge');
+        const roundText = document.getElementById('roundText');
+        const roundPills = document.getElementById('roundPills');
+        const progressBar = document.getElementById('progressBar');
+        const btnStart = document.getElementById('btnStart');
+        const btnPause = document.getElementById('btnPause');
+        const btnReset = document.getElementById('btnReset');
+        const btnFullscreenToggle = document.getElementById('btnFullscreenToggle');
+        const fsIcon = document.getElementById('fsIcon');
+        const fsText = document.getElementById('fsText');
+        const btnSoundToggle = document.getElementById('btnSoundToggle');
+        const soundIcon = document.getElementById('soundIcon');
+        const wakeLockBadge = document.getElementById('wakeLockBadge');
+        const wakeLockStatusText = document.getElementById('wakeLockStatusText');
+        const wallClockText = document.getElementById('wallClockText');
+
+        // State variables
+        let localTimerState = JSON.parse(document.getElementById('timer-state-data').textContent);
+        window.localTimerState = localTimerState;
+        let timerInterval = null;
+        window.lastRenderedState = null;
+        function readPreference(key, fallback) {
+            try { const value = localStorage.getItem('lzbjj.timer.' + key); return value === null ? fallback : JSON.parse(value); } catch (_) { return fallback; }
+        }
+        function savePreference(key, value) {
+            try { localStorage.setItem('lzbjj.timer.' + key, JSON.stringify(value)); } catch (_) { /* Private browsing may disable storage. */ }
+        }
+        let soundEnabled = readPreference('sound', true);
+        const musicToggle = document.getElementById('btnMusicToggle');
+        const musicPanel = document.getElementById('timerSidePanel');
+        function updateMusicPanel() {
+            const open = readPreference('music', true);
+            musicPanel.hidden = !open;
+            musicToggle.setAttribute('aria-expanded', String(open));
+
+            window.dispatchEvent(new Event('timer:layoutchange'));
+        }
+        document.getElementById('timerQuickSelect').addEventListener('change', event => {
+            if (event.target.value) window.location.assign(event.target.value);
+        });
+        musicToggle.addEventListener('click', () => { savePreference('music', musicPanel.hidden); updateMusicPanel(); });
+        updateMusicPanel();
+        if (!soundEnabled) { soundIcon.className = 'fas fa-volume-mute'; btnSoundToggle.classList.add('muted'); }
+        btnSoundToggle.setAttribute('aria-pressed', String(soundEnabled));
+
+        // =========================================================================
+        // Robust CSRF Helper
+        // =========================================================================
+        function getCsrfToken() {
+            const input = document.querySelector('#csrfForm input[name=csrfmiddlewaretoken]') ||
+                          document.querySelector('input[name=csrfmiddlewaretoken]');
+            if (input && input.value) return input.value;
+            const parts = `; ${document.cookie}`.split('; csrftoken=');
+            if (parts.length === 2) return parts.pop().split(';').shift();
+            return '';
+        }
+
+        // =========================================================================
+        // Live Wall Clock
+        // =========================================================================
+        function updateWallClock() {
+            if (!wallClockText) return;
+            const now = new Date();
+            let h = now.getHours();
+            const m = now.getMinutes().toString().padStart(2, '0');
+            const s = now.getSeconds().toString().padStart(2, '0');
+            const ampm = h >= 12 ? 'PM' : 'AM';
+            h = h % 12 || 12;
+            wallClockText.textContent = `${h}:${m}:${s} ${ampm}`;
+        }
+        updateWallClock();
+        setInterval(updateWallClock, 1000);
+
+        // =========================================================================
+        // Screen Wake Lock API Management
+        // =========================================================================
+        let wakeLockSentinel = null;
+        let wakeLockUserDisabled = !readPreference('awake', true);
+
+        async function acquireWakeLock() {
+            if ('wakeLock' in navigator) {
+                try {
+                    if (!wakeLockSentinel) {
+                        wakeLockSentinel = await navigator.wakeLock.request('screen');
+                        updateWakeLockUI(true);
+                        wakeLockSentinel.addEventListener('release', () => {
+                            wakeLockSentinel = null;
+                            updateWakeLockUI(false);
+                        });
+                    }
+                } catch (err) {
+                    console.info('Screen Wake Lock request not permitted or supported:', err.message);
+                    updateWakeLockUI(false);
+                }
+            } else {
+                updateWakeLockUI(false);
+            }
+        }
+
+        async function releaseWakeLock() {
+            if (wakeLockSentinel) {
+                try {
+                    await wakeLockSentinel.release();
+                    wakeLockSentinel = null;
+                } catch (err) {
+                    console.warn('Error releasing wake lock:', err);
+                }
+            }
+            updateWakeLockUI(false);
+        }
+
+        function updateWakeLockUI(isActive) {
+            if (!wakeLockBadge) return;
+            if (isActive) {
+                wakeLockBadge.classList.add('active');
+                wakeLockBadge.setAttribute('aria-pressed', 'true');
+                if (wakeLockStatusText) wakeLockStatusText.textContent = 'Screen Awake';
+            } else {
+                wakeLockBadge.classList.remove('active');
+                wakeLockBadge.setAttribute('aria-pressed', 'false');
+                if (wakeLockStatusText) wakeLockStatusText.textContent = 'Screen Normal';
+            }
+        }
+
+        if (wakeLockBadge) {
+            wakeLockBadge.addEventListener('click', () => {
+                if (wakeLockSentinel) {
+                    wakeLockUserDisabled = true;
+                    savePreference('awake', false);
+                    releaseWakeLock();
+                } else {
+                    wakeLockUserDisabled = false;
+                    savePreference('awake', true);
+                    acquireWakeLock();
+                }
+            });
+        }
+
+        // Re-acquire Wake Lock when tab becomes visible again (unless user manually turned it off)
+        document.addEventListener('visibilitychange', () => {
+            if (document.visibilityState === 'visible' && !wakeLockUserDisabled) {
+                acquireWakeLock();
+            }
+        });
+
+        // =========================================================================
+        // Fullscreen Management (Standard API + CSS Overlay Fallback)
+        // =========================================================================
+        function isNativeFullscreen() {
+            return !!(document.fullscreenElement || document.webkitFullscreenElement || document.mozFullScreenElement || document.msFullscreenElement);
+        }
+
+        function isFullscreenActive() {
+            return isNativeFullscreen() || timerCard.classList.contains('is-fullscreen');
+        }
+
+        async function enterFullscreen() {
+            const elem = document.documentElement;
+            try {
+                if (elem.requestFullscreen) {
+                    await elem.requestFullscreen();
+                } else if (elem.webkitRequestFullscreen) {
+                    elem.webkitRequestFullscreen();
+                } else if (elem.mozRequestFullScreen) {
+                    elem.mozRequestFullScreen();
+                } else if (elem.msRequestFullscreen) {
+                    elem.msRequestFullscreen();
+                }
+            } catch (err) {
+                console.info("Native fullscreen unavailable, using immersive CSS view:", err);
+            }
+
+            timerCard.classList.add('is-fullscreen');
+            document.body.classList.add('timer-in-fullscreen');
+            updateFullscreenUI(true);
+        }
+
+        async function exitFullscreen() {
+            try {
+                if (isNativeFullscreen()) {
+                    if (document.exitFullscreen) {
+                        await document.exitFullscreen();
+                    } else if (document.webkitExitFullscreen) {
+                        document.webkitExitFullscreen();
+                    } else if (document.mozCancelFullScreen) {
+                        document.mozCancelFullScreen();
+                    } else if (document.msExitFullscreen) {
+                        document.msExitFullscreen();
+                    }
+                }
+            } catch (err) {
+                console.warn("Exit fullscreen error:", err);
+            }
+
+            timerCard.classList.remove('is-fullscreen');
+            document.body.classList.remove('timer-in-fullscreen');
+            updateFullscreenUI(false);
+        }
+
+        function toggleFullscreen() {
+            savePreference('coaching', !isFullscreenActive());
+            if (isFullscreenActive()) {
+                exitFullscreen();
+            } else {
+                enterFullscreen();
+            }
+        }
+
+        function updateFullscreenUI(active) {
+            if (active) {
+                if (fsIcon) fsIcon.className = 'fas fa-compress';
+                if (fsText) fsText.textContent = 'Exit Fullscreen';
+                if (btnFullscreenToggle) btnFullscreenToggle.classList.add('active');
+            } else {
+                if (fsIcon) fsIcon.className = 'fas fa-expand';
+                if (fsText) fsText.textContent = 'Coaching mode';
+                if (btnFullscreenToggle) btnFullscreenToggle.classList.remove('active');
+            }
+        }
+
+        function handleFullscreenChange() {
+            // Navigation and browser confirmation dialogs may end native
+            // fullscreen. Keep the coaching layout until explicitly turned off.
+            const active = isNativeFullscreen() || readPreference('coaching', false);
+            if (active) {
+                timerCard.classList.add('is-fullscreen');
+                document.body.classList.add('timer-in-fullscreen');
+                updateFullscreenUI(true);
+            } else {
+                timerCard.classList.remove('is-fullscreen');
+                document.body.classList.remove('timer-in-fullscreen');
+                updateFullscreenUI(false);
+            }
+        }
+
+        document.addEventListener('fullscreenchange', handleFullscreenChange);
+        document.addEventListener('webkitfullscreenchange', handleFullscreenChange);
+        document.addEventListener('mozfullscreenchange', handleFullscreenChange);
+        document.addEventListener('MSFullscreenChange', handleFullscreenChange);
+
+        if (btnFullscreenToggle) {
+            btnFullscreenToggle.addEventListener('click', toggleFullscreen);
+        }
+
+        // =========================================================================
+        // Sound & Audio Setup
+        // =========================================================================
+        let audioCtx = null;
+        
+        function initAudio() {
+            try {
+                if (!audioCtx) {
+                    const AudioContextClass = window.AudioContext || window.webkitAudioContext;
+                    if (AudioContextClass) {
+                        audioCtx = new AudioContextClass();
+                    }
+                }
+                if (audioCtx && audioCtx.state === 'suspended') {
+                    audioCtx.resume();
+                }
+            } catch (e) {
+                console.warn('AudioContext initialization note:', e);
+            }
+        }
+
+        function playTestChirp() {
+            if (!soundEnabled) return;
+            initAudio();
+            if (!audioCtx) return;
+            try {
+                const osc = audioCtx.createOscillator();
+                const gain = audioCtx.createGain();
+                const now = audioCtx.currentTime;
+                osc.type = 'sine';
+                osc.frequency.setValueAtTime(587.33, now); // D5
+                osc.frequency.exponentialRampToValueAtTime(880, now + 0.12); // A5
+                gain.gain.setValueAtTime(0.3, now);
+                gain.gain.exponentialRampToValueAtTime(0.001, now + 0.12);
+                osc.connect(gain);
+                gain.connect(audioCtx.destination);
+                osc.start(now);
+                osc.stop(now + 0.12);
+            } catch (e) {
+                console.warn('Audio chirp note:', e);
+            }
+        }
+
+        function toggleSound() {
+            initAudio();
+            soundEnabled = !soundEnabled;
+            savePreference('sound', soundEnabled);
+            btnSoundToggle.setAttribute('aria-pressed', String(soundEnabled));
+            if (soundEnabled) {
+                if (soundIcon) soundIcon.className = 'fas fa-volume-up';
+                if (btnSoundToggle) {
+                    btnSoundToggle.classList.remove('muted');
+                    btnSoundToggle.classList.remove('active');
+                    btnSoundToggle.setAttribute('title', 'Sound is ON (Click to Mute)');
+                }
+                playTestChirp();
+            } else {
+                if (soundIcon) soundIcon.className = 'fas fa-volume-mute';
+                if (btnSoundToggle) {
+                    btnSoundToggle.classList.add('muted');
+                    btnSoundToggle.setAttribute('title', 'Sound is MUTED (Click to Unmute)');
+                }
+            }
+        }
+
+        if (btnSoundToggle) {
+            btnSoundToggle.addEventListener('click', toggleSound);
+        }
+
+        {# Round bell: SFXMint Double Strike Boxing Round Bell 05 (CC0 1.0). #}
+        const finishBell = new Audio('{% static "timerapp/boxing-finish-bell.wav" %}');
+        finishBell.preload = 'auto';
+
+        function playBeep(type) {
+            if (!soundEnabled) return;
+
+            if (type === 'end' || type === 'rest') {
+                const customSound = type === 'end' && localTimerState.sound_file_url;
+                const audio = customSound ? new Audio(customSound) : finishBell;
+                audio.currentTime = 0;
+                audio.play().catch(async () => {
+                    if (!soundEnabled) return;
+                    if (customSound) {
+                        try {
+                            finishBell.currentTime = 0;
+                            await finishBell.play();
+                            return;
+                        } catch {
+                            // Fall back to the synthesized cue if the file cannot play.
+                        }
+                    }
+                    if (soundEnabled) playSynthesizedBeep(type);
+                });
+                return;
+            }
+            playSynthesizedBeep(type);
+        }
+
+        function playSynthesizedBeep(type) {
+            initAudio();
+            if (!audioCtx) return;
+
+            try {
+                const oscillator = audioCtx.createOscillator();
+                const gainNode = audioCtx.createGain();
+                
+                let freq = 440;
+                let duration = 0.5;
+
+                if (type === 'work') {
+                    freq = 880;
+                    duration = 0.8;
+                    oscillator.type = 'square';
+                } else if (type === 'rest') {
+                    freq = 330;
+                    duration = 0.8;
+                    oscillator.type = 'sawtooth';
+                } else if (type === 'end') {
+                    freq = 1046;
+                    duration = 1.2;
+                    oscillator.type = 'sine';
+                } else if (type === 'tick') {
+                    freq = 523.25;
+                    duration = 0.1;
+                    oscillator.type = 'sine';
+                }
+
+                const now = audioCtx.currentTime;
+                oscillator.frequency.setValueAtTime(freq, now);
+                gainNode.gain.setValueAtTime(0.4, now);
+                gainNode.gain.exponentialRampToValueAtTime(0.001, now + duration);
+                
+                oscillator.connect(gainNode);
+                gainNode.connect(audioCtx.destination);
+                
+                oscillator.start(now);
+                oscillator.stop(now + duration);
+            } catch (err) {
+                console.warn('Audio playback error:', err);
+            }
+        }
+
+        function formatTime(seconds) {
+            const m = Math.floor(seconds / 60);
+            const s = seconds % 60;
+            return `${m.toString().padStart(2, '0')}:${s.toString().padStart(2, '0')}`;
+        }
+
+        // =========================================================================
+        // Render Round Dots & Indicators
+        // =========================================================================
+        function buildRoundDots(totalRounds, currentRound, status) {
+            if (!roundPills) return;
+            roundPills.innerHTML = '';
+            for (let i = 1; i <= totalRounds; i++) {
+                const dot = document.createElement('div');
+                dot.classList.add('round-dot');
+                if (status === 'DONE' || i < currentRound) {
+                    dot.classList.add('completed');
+                } else if (i === currentRound && status !== 'READY') {
+                    dot.classList.add('current');
+                }
+                dot.title = `Round ${i}`;
+                roundPills.appendChild(dot);
+            }
+        }
+
+        // =========================================================================
+        // Timer Engine
+        // =========================================================================
+        let completionReset = null;
+        function scheduleCompletionReset() {
+            if (completionReset !== null) return;
+            completionReset = setTimeout(() => {
+                completionReset = null;
+                if (localTimerState.status === 'DONE') sendAction('complete');
+            }, 1500);
+        }
+        function updateLocalTimerState(timer) {
+            if (completionReset !== null && timer.status !== 'DONE') {
+                clearTimeout(completionReset);
+                completionReset = null;
+            }
+            if (timer.server_time) {
+                const serverTime = new Date(timer.server_time);
+                window.timerSkewOffset = serverTime.getTime() - Date.now();
+            }
+            localTimerState = timer;
+            window.localTimerState = timer;
+            if (timerInterval) {
+                clearInterval(timerInterval);
+                timerInterval = null;
+            }
+            
+            if (timer.status === 'RUNNING') {
+                timerInterval = setInterval(tick, 100);
+            }
+            // Screen stays awake regardless of timer status unless the user manually disables it
+            if (!wakeLockUserDisabled) {
+                acquireWakeLock();
+            }
+            renderLocalState();
+            if (timer.status === 'DONE') scheduleCompletionReset();
+        }
+
+        function tick() {
+            if (!localTimerState || localTimerState.status !== 'RUNNING') return;
+            
+            const current = getTimerStateAt(localTimerState, new Date(Date.now() + (window.timerSkewOffset || 0)));
+            const prevRendered = window.lastRenderedState;
+            
+            if (prevRendered) {
+                if (prevRendered.status === 'RUNNING' && current.status === 'DONE') {
+                    playBeep('end');
+                } else if (prevRendered.current_state === 'WORK' && current.current_state === 'REST') {
+                    playBeep('rest');
+                } else if (prevRendered.current_state === 'REST' && current.current_state === 'WORK') {
+                    playBeep('work');
+                } else if (current.status === 'RUNNING') {
+                    const tr = current.time_remaining;
+                    if (tr <= 3 && tr > 0 && tr !== prevRendered.time_remaining) {
+                        playBeep('tick');
+                    }
+                }
+            }
+            
+            if (current.status === 'DONE') {
+                clearInterval(timerInterval);
+                timerInterval = null;
+                localTimerState.status = 'DONE';
+                scheduleCompletionReset();
+                localTimerState.time_remaining = 0;
+            }
+            
+            renderLocalStateWithValues(current);
+        }
+
+        function renderLocalState() {
+            if (!localTimerState) return;
+            const current = getTimerStateAt(localTimerState, new Date(Date.now() + (window.timerSkewOffset || 0)));
+            renderLocalStateWithValues(current);
+        }
+
+        function renderLocalStateWithValues(current) {
+            window.lastRenderedState = {
+                status: current.status,
+                current_state: current.current_state,
+                current_round: current.current_round,
+                time_remaining: current.time_remaining
+            };
+            
+            window.currentRound = current.current_round;
+            
+            let displayTime = current.time_remaining;
+            if (localTimerState.direction === 'UP' && current.current_state === 'WORK') {
+                displayTime = localTimerState.duration - current.time_remaining;
+            }
+            
+            if (display) display.innerText = formatTime(displayTime);
+            if (roundText) roundText.innerText = `Round ${current.current_round} of ${localTimerState.rounds}`;
+            buildRoundDots(localTimerState.rounds, current.current_round, current.status);
+
+            // Calculate progress bar fill
+            const totalInterval = (current.current_state === 'WORK') ? localTimerState.duration : localTimerState.interval;
+            let percent = 100;
+            if (totalInterval > 0) {
+                if (localTimerState.direction === 'UP' && current.current_state === 'WORK') {
+                    percent = Math.min(100, Math.max(0, (displayTime / totalInterval) * 100));
+                } else {
+                    percent = Math.min(100, Math.max(0, (current.time_remaining / totalInterval) * 100));
+                }
+            }
+            if (current.status === 'DONE') percent = 100;
+            if (progressBar) progressBar.style.width = `${percent}%`;
+
+            // Reset dynamic state classes
+            const stateClasses = ['state-work', 'state-rest', 'state-paused', 'state-ready', 'state-done'];
+            if (timerCard) timerCard.classList.remove(...stateClasses);
+            if (display) display.classList.remove(...stateClasses);
+            if (statusBadge) statusBadge.classList.remove(...stateClasses);
+            if (progressBar) progressBar.classList.remove(...stateClasses);
+
+            if (current.status === 'READY') {
+                if (statusBadge) statusBadge.innerText = 'READY';
+                const cls = 'state-ready';
+                if (timerCard) timerCard.classList.add(cls);
+                if (display) display.classList.add(cls);
+                if (statusBadge) statusBadge.classList.add(cls);
+                if (progressBar) progressBar.classList.add(cls);
+
+                if (btnStart) {
+                    btnStart.classList.remove('d-none');
+                    btnStart.disabled = false;
+                }
+                if (btnPause) btnPause.classList.add('d-none');
+            } else if (current.status === 'RUNNING') {
+                if (current.current_state === 'WORK') {
+                    if (statusBadge) statusBadge.innerText = 'WORK';
+                    const cls = 'state-work';
+                    if (timerCard) timerCard.classList.add(cls);
+                    if (display) display.classList.add(cls);
+                    if (statusBadge) statusBadge.classList.add(cls);
+                    if (progressBar) progressBar.classList.add(cls);
+                } else {
+                    if (statusBadge) statusBadge.innerText = 'REST';
+                    const cls = 'state-rest';
+                    if (timerCard) timerCard.classList.add(cls);
+                    if (display) display.classList.add(cls);
+                    if (statusBadge) statusBadge.classList.add(cls);
+                    if (progressBar) progressBar.classList.add(cls);
+                }
+                if (btnStart) btnStart.classList.add('d-none');
+                if (btnPause) btnPause.classList.remove('d-none');
+            } else if (current.status === 'PAUSED') {
+                if (statusBadge) statusBadge.innerText = 'PAUSED';
+                const cls = 'state-paused';
+                if (timerCard) timerCard.classList.add(cls);
+                if (display) display.classList.add(cls);
+                if (statusBadge) statusBadge.classList.add(cls);
+                if (progressBar) progressBar.classList.add(cls);
+
+                if (btnStart) {
+                    btnStart.classList.remove('d-none');
+                    btnStart.disabled = false;
+                }
+                if (btnPause) btnPause.classList.add('d-none');
+            } else if (current.status === 'DONE') {
+                if (statusBadge) statusBadge.innerText = 'DONE';
+                const cls = 'state-done';
+                if (timerCard) timerCard.classList.add(cls);
+                if (display) display.classList.add(cls);
+                if (statusBadge) statusBadge.classList.add(cls);
+                if (progressBar) progressBar.classList.add(cls);
+
+                if (btnStart) {
+                    btnStart.classList.remove('d-none');
+                    btnStart.disabled = true;
+                }
+                if (btnPause) btnPause.classList.add('d-none');
+            }
+            
+            if (typeof sendTimerUpdate === 'function') {
+                sendTimerUpdate();
+            }
+        }
+
+        let actionPending = false;
+        function confirmTimerAction(message) {
+            const dialog = document.getElementById('timerConfirmation');
+            document.getElementById('timerConfirmationMessage').textContent = message;
+            dialog.returnValue = 'cancel';
+            return new Promise(resolve => {
+                dialog.addEventListener('close', () => resolve(dialog.returnValue === 'confirm'), { once: true });
+                dialog.showModal();
+            });
+        }
+        async function sendAction(actionName, confirmation = {}) {
+            if (actionPending) {
+                if (actionName === 'complete') scheduleCompletionReset();
+                return;
+            }
+            actionPending = true;
+            const actionError = document.getElementById('timerActionError');
+            actionError.hidden = true;
+            if (actionName === 'start' && readPreference('coaching', false) && !isFullscreenActive()) enterFullscreen();
+            initAudio();
+            const token = getCsrfToken();
+            try {
+                const res = await fetch(`/timers/${localTimerState.id}/action/`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'X-CSRFToken': token,
+                        'X-Requested-With': 'XMLHttpRequest'
+                    },
+                    body: JSON.stringify({ action: actionName, ...confirmation })
+                });
+                
+                const data = await res.json();
+                if (res.status === 409 && data.confirmation_required) {
+                    if (await confirmTimerAction(data.message)) {
+                        actionPending = false;
+                        return await sendAction(actionName, data.confirmation);
+                    }
+                    return;
+                }
+                if (!res.ok) throw new Error(data.error || `Timer action failed (${res.status})`);
+                updateLocalTimerState(data);
+            } catch (e) {
+                actionError.textContent = 'Could not update timer. Please try again.';
+                actionError.hidden = false;
+                console.error(`Error sending action ${actionName}:`, e);
+            } finally { actionPending = false; }
+        }
+
+        // =========================================================================
+        // Event Listeners & Controls
+        // =========================================================================
+        if (btnStart) btnStart.addEventListener('click', () => sendAction('start'));
+        if (btnPause) btnPause.addEventListener('click', () => sendAction('pause'));
+        if (btnReset) btnReset.addEventListener('click', () => sendAction('reset'));
+
+        // Keyboard Shortcuts
+        document.addEventListener('keydown', (e) => {
+            if (e.repeat || e.ctrlKey || e.metaKey || e.altKey || e.target.isContentEditable || ['INPUT', 'TEXTAREA', 'SELECT', 'BUTTON', 'A'].includes(e.target.tagName)) return;
+
+            if (e.code === 'Space') {
+                e.preventDefault();
+                if (localTimerState.status === 'RUNNING') {
+                    sendAction('pause');
+                } else if (localTimerState.status !== 'DONE') {
+                    sendAction('start');
+                }
+            } else if (e.key === 'r' || e.key === 'R') {
+                e.preventDefault();
+                sendAction('reset');
+            } else if (e.key === 'f' || e.key === 'F') {
+                e.preventDefault();
+                toggleFullscreen();
+            } else if (e.key === 'm' || e.key === 'M') {
+                e.preventDefault();
+                toggleSound();
+            }
+        });
+
+        // Ably Real-time Sync
+        if (window.__ablyInstance) {
+            const ably = window.__ablyInstance;
+            const channel = ably.channels.get("user-{{ request.user.id }}-timer");
+            channel.subscribe('update', (msg) => {
+                const timer = msg.data;
+                if (timer.id === localTimerState.id) {
+                    console.log("Ably received update for this timer", timer);
+                    updateLocalTimerState(timer);
+                }
+            });
+        }
+
+        // Initial setup
+        updateLocalTimerState(localTimerState);
+
+        // Restore the saved coaching layout after selecting another timer.
+        // Native fullscreen may require a gesture; enterFullscreen has a CSS fallback.
+        if (readPreference('coaching', false)) enterFullscreen();
+        if (!wakeLockUserDisabled) acquireWakeLock();
+        document.getElementById('btnTestSound').addEventListener('click', () => {
+            if (!soundEnabled) { showAudioNotice('Enable timer sound to test it.'); return; }
+            initAudio();
+            playTestChirp();
+        });
+        function showAudioNotice(message) {
+            const notice = document.getElementById('timerActionError');
+            notice.textContent = message;
+            notice.hidden = false;
+        }
+
+    });
+</script>
+
+<!-- Spotify Playlist & Playback Controls -->
+{% if spotify_configured %}
+<script>
+    document.addEventListener('DOMContentLoaded', () => {
+        const panel = document.getElementById('timerSidePanel');
+        if (!panel) return;
+
+        const connectedInfo = document.getElementById('spotifyConnectedInfo');
+        const displayNameEl = document.getElementById('spotifyDisplayName');
+        const disconnectedState = document.getElementById('spotifyDisconnectedState');
+        const connectedState = document.getElementById('spotifyConnectedState');
+        const playlistSelect = document.getElementById('spotifyPlaylistSelect');
+        const deviceSelect = document.getElementById('spotifyDeviceSelect');
+        const btnPlay = document.getElementById('btnSpotifyPlay');
+        const btnShuffle = document.getElementById('btnSpotifyShuffle');
+        const btnRepeat = document.getElementById('btnSpotifyRepeat');
+        const seek = document.getElementById('spotifySeek');
+        const volume = document.getElementById('spotifyVolume');
+        const volumeValue = document.getElementById('spotifyVolumeValue');
+        const elapsed = document.getElementById('spotifyElapsed');
+        const duration = document.getElementById('spotifyDuration');
+        const trackInfo = document.getElementById('spotifyTrackInfo');
+        const btnNext = document.getElementById('btnSpotifyNext');
+        const btnPrev = document.getElementById('btnSpotifyPrev');
+        const errorText = document.getElementById('spotifyErrorText');
+
+        function getCsrfTokenForSpotify() {
+            const input = document.querySelector('#csrfForm input[name=csrfmiddlewaretoken]') ||
+                          document.querySelector('input[name=csrfmiddlewaretoken]');
+            if (input && input.value) return input.value;
+            const parts = `; ${document.cookie}`.split('; csrftoken=');
+            if (parts.length === 2) return parts.pop().split(';').shift();
+            return '';
+        }
+
+        function showSpotifyError(message) {
+            if (!errorText) return;
+            errorText.textContent = message;
+            errorText.classList.remove('d-none');
+        }
+
+        function clearSpotifyError() {
+            if (!errorText) return;
+            errorText.classList.add('d-none');
+            errorText.textContent = '';
+        }
+
+        async function loadSpotifyPlaylists(selectedUri) {
+            try {
+                const res = await fetch('{% url "timers:spotify_playlists" %}');
+                const data = await res.json();
+                if (!res.ok) throw new Error(data.error || 'Failed to load playlists');
+                playlistSelect.innerHTML = '';
+                if (!data.playlists.length) {
+                    playlistSelect.innerHTML = '<option value="">No playlists found</option>';
+                    return;
+                }
+                data.playlists.forEach(pl => {
+                    const opt = document.createElement('option');
+                    opt.value = pl.uri;
+                    opt.textContent = `${pl.name} (${pl.tracks_total ?? 0})`;
+                    if (pl.uri === selectedUri) opt.selected = true;
+                    playlistSelect.appendChild(opt);
+                });
+            } catch (e) {
+                showSpotifyError(e.message);
+            }
+        }
+
+        let refreshingDevices = false;
+        const refreshDevicesButton = document.getElementById('btnSpotifyRefreshDevices');
+        async function loadSpotifyDevices(selectedId) {
+            if (refreshingDevices) return;
+            refreshingDevices = true;
+            refreshDevicesButton.disabled = true;
+            const preferredId = selectedId || deviceSelect.value;
+            try {
+                const res = await fetch('{% url "timers:spotify_devices" %}', { cache: 'no-store' });
+                const data = await res.json();
+                if (!res.ok) throw new Error(data.error || 'Failed to load devices');
+                const devices = data.devices || [];
+                deviceSelect.innerHTML = '';
+                if (!devices.length) {
+                    deviceSelect.innerHTML = '<option value="">No devices — open Spotify, then refresh</option>';
+                    return;
+                }
+                const selectable = devices.filter(dev => dev.id && !dev.is_restricted);
+                const chosen = selectable.find(dev => dev.id === preferredId) ||
+                               selectable.find(dev => dev.is_active) || selectable[0];
+                devices.forEach(dev => {
+                    const opt = document.createElement('option');
+                    opt.value = dev.id || '';
+                    opt.disabled = !dev.id || !!dev.is_restricted;
+                    opt.textContent = `${dev.name} (${dev.type})${dev.is_active ? ' — active' : ''}${opt.disabled ? ' — unavailable for control' : ''}`;
+                    opt.selected = !!chosen && dev.id === chosen.id;
+                    deviceSelect.appendChild(opt);
+                });
+                if (!chosen) deviceSelect.value = '';
+            } catch (e) {
+                showSpotifyError(e.message);
+            } finally {
+                refreshingDevices = false;
+                refreshDevicesButton.disabled = false;
+            }
+        }
+        refreshDevicesButton.addEventListener('click', () => { clearSpotifyError(); loadSpotifyDevices(); });
+
+        let playback = { active: false, is_playing: false, progress_ms: 0, duration_ms: 0 };
+        let sampledAt = performance.now();
+        let playlistChanged = false;
+        let dragging = false;
+        let busy = false;
+        let polling = false;
+        let connected = false;
+        let commandRevision = 0;
+        let settleUntil = 0;
+        const buttons = [btnPlay, btnNext, btnPrev, btnShuffle, btnRepeat];
+        const formatMusicTime = ms => {
+            const seconds = Math.floor(Math.max(0, Number(ms) || 0) / 1000);
+            return `${Math.floor(seconds / 60)}:${String(seconds % 60).padStart(2, '0')}`;
+        };
+        function renderPlayback() {
+            const playing = playback.is_playing === true;
+            const label = playing ? 'Pause' : 'Play';
+            if (btnPlay.getAttribute('aria-label') !== label) {
+                btnPlay.innerHTML = playing ? '<i class="fas fa-pause"></i>' : '<i class="fas fa-play"></i>';
+                btnPlay.title = label;
+                btnPlay.setAttribute('aria-label', label);
+            }
+            btnShuffle.classList.toggle('active', !!playback.shuffle_state);
+            btnShuffle.setAttribute('aria-pressed', String(!!playback.shuffle_state));
+            const repeat = playback.repeat_state || 'off';
+            btnRepeat.classList.toggle('active', repeat !== 'off');
+            btnRepeat.setAttribute('aria-pressed', String(repeat !== 'off'));
+            btnRepeat.title = btnRepeat.ariaLabel = `Repeat ${repeat === 'context' ? 'playlist' : repeat === 'track' ? 'song' : 'off'}`;
+            document.getElementById('spotifyRepeatOne').classList.toggle('d-none', repeat !== 'track');
+            trackInfo.textContent = playback.active ? `${playback.track_name} — ${playback.artists}` : 'Open Spotify on your selected device to start listening.';
+            const disallows = playback.disallows || {};
+            const restrictions = [playing ? 'pausing' : 'resuming', 'skipping_next', 'skipping_prev', 'toggling_shuffle', ['toggling_repeat_context', 'toggling_repeat_track']];
+            buttons.forEach((button, index) => {
+                const restriction = restrictions[index];
+                button.disabled = busy || (Array.isArray(restriction)
+                    ? restriction.some(action => disallows[action])
+                    : !!disallows[restriction]);
+            });
+            seek.disabled = busy || !playback.duration_ms || !!disallows.seeking;
+            const volumeAvailable = playback.supports_volume && Number.isInteger(playback.volume_percent)
+                && !!playback.device_id && (!deviceSelect.value || deviceSelect.value === playback.device_id);
+            volume.disabled = busy || !!roundVolume || !volumeAvailable;
+            if (!volumeAvailable || Number(volume.dataset.synced) !== playback.volume_percent) {
+                volume.value = volumeAvailable ? playback.volume_percent : 0;
+                volume.dataset.synced = volumeAvailable ? playback.volume_percent : '';
+                volumeValue.textContent = volumeAvailable ? `${volume.value}%` : '—';
+            }
+            duration.textContent = formatMusicTime(playback.duration_ms);
+            if (!dragging) {
+                seek.max = Math.max(0, playback.duration_ms - 1);
+                seek.value = Math.min(Number(seek.max), playback.progress_ms + (playback.is_playing ? performance.now() - sampledAt : 0));
+                elapsed.textContent = formatMusicTime(Number(seek.value));
+            }
+        }
+        async function refreshPlayback() {
+            if (polling || busy || !connected || document.hidden) return;
+            polling = true;
+            const revision = commandRevision;
+            try {
+                const res = await fetch('{% url "timers:spotify_playback_state" %}', { cache: 'no-store' });
+                const data = await res.json();
+                if (!res.ok) throw new Error(data.error || 'Unable to read playback');
+                if (revision !== commandRevision || performance.now() < settleUntil) return;
+                playback = {
+                    ...data,
+                    active: data.active === true,
+                    is_playing: data.is_playing === true,
+                    progress_ms: Math.max(0, Number(data.progress_ms) || 0),
+                    duration_ms: Math.max(0, Number(data.duration_ms) || 0),
+                    shuffle_state: data.shuffle_state === true,
+                    repeat_state: data.repeat_state || 'off'
+                };
+                sampledAt = performance.now();
+                renderPlayback();
+            } catch (e) { showSpotifyError(e.message); }
+            finally { polling = false; }
+        }
+        playlistSelect.addEventListener('change', () => { playlistChanged = true; });
+        let roundVolume = null;
+        let nextVolumeAttempt = 0;
+
+        async function syncRoundVolume() {
+            const timer = window.lastRenderedState;
+            if (!timer || !connected || busy || performance.now() < nextVolumeAttempt) return;
+
+            if (roundVolume) {
+                const now = performance.now();
+                const sameInterval = timer.status === 'RUNNING' &&
+                    timer.current_round === roundVolume.round && timer.current_state === roundVolume.phase;
+                if (sameInterval) {
+                    const step = Math.max(1, Math.min(3, 4 - Math.ceil(timer.time_remaining)));
+                    await setRoundVolumeStep(roundVolume.normal - (roundVolume.normal - roundVolume.low) * step / 3);
+                    return;
+                }
+
+                if (!roundVolume.restoreAfter) {
+                    // Keep the music low through the cue at the transition.
+                    roundVolume.restoreAfter = now + (timer.status === 'DONE' ? 3000 : 2000);
+                    roundVolume.restoreFrom = roundVolume.sent;
+                }
+                if (now < roundVolume.restoreAfter) return;
+
+                const step = Math.min(3, 1 + Math.floor((now - roundVolume.restoreAfter) / 500));
+                const target = roundVolume.restoreFrom + (roundVolume.normal - roundVolume.restoreFrom) * step / 3;
+                if (await setRoundVolumeStep(target) && step === 3) {
+                    roundVolume = null;
+                }
+                return;
+            }
+
+            if (timer.status !== 'RUNNING' || !['WORK', 'REST'].includes(timer.current_state) ||
+                timer.time_remaining <= 0 || timer.time_remaining > 3 ||
+                !playback.is_playing || volume.disabled || playback.volume_percent === 0) return;
+
+            roundVolume = {
+                round: timer.current_round,
+                phase: timer.current_state,
+                device: playback.device_id,
+                normal: playback.volume_percent,
+                low: Math.floor(playback.volume_percent / 2),
+                sent: playback.volume_percent,
+                restoreAfter: 0
+            };
+            await syncRoundVolume();
+        }
+
+        async function setRoundVolumeStep(target) {
+            const volumePercent = Math.round(target);
+            if (volumePercent === roundVolume.sent) return true;
+            if (await sendSpotifyAction('volume', {
+                device_id: roundVolume.device,
+                volume_percent: volumePercent
+            })) {
+                roundVolume.sent = volumePercent;
+                return true;
+            }
+            nextVolumeAttempt = performance.now() + 2000;
+            return false;
+        }
+
+        async function sendSpotifyAction(action, extra = {}) {
+            if (busy) return;
+            const requestAction = action === 'play' && playback.active && !playlistChanged ? 'resume' : action;
+            busy = true;
+            commandRevision++;
+            renderPlayback();
+            clearSpotifyError();
+            try {
+                const res = await fetch('{% url "timers:spotify_control" %}', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json', 'X-CSRFToken': getCsrfTokenForSpotify() },
+                    body: JSON.stringify({
+                        action: requestAction,
+                        playlist_uri: requestAction === 'play' ? (playlistSelect.value || undefined) : undefined,
+                        device_id: deviceSelect.value || undefined,
+                        ...extra
+                    })
+                });
+                const data = await res.json();
+                if (!res.ok) throw new Error(data.error || `Spotify ${action} failed`);
+                if (action === 'play') { playlistChanged = false; playback.active = true; playback.is_playing = true; }
+                if (action === 'pause') playback.is_playing = false;
+                if (action === 'shuffle') playback.shuffle_state = extra.state;
+                if (action === 'repeat') playback.repeat_state = extra.state;
+                if (action === 'seek') playback.progress_ms = extra.position_ms;
+                if (action === 'volume') {
+                    if (extra.device_id === playback.device_id) playback.volume_percent = extra.volume_percent;
+                } else {
+                    sampledAt = performance.now();
+                }
+                settleUntil = performance.now() + 1500;
+                return true;
+            } catch (e) {
+                showSpotifyError(e.message);
+                return false;
+            }
+            finally {
+                if (action === 'volume') delete volume.dataset.synced;
+                busy = false;
+                renderPlayback();
+                refreshPlayback();
+            }
+        }
+        btnPlay.addEventListener('click', () => sendSpotifyAction(playback.is_playing ? 'pause' : 'play'));
+        btnNext.addEventListener('click', () => sendSpotifyAction('next'));
+        btnPrev.addEventListener('click', () => sendSpotifyAction('previous'));
+        btnShuffle.addEventListener('click', () => sendSpotifyAction('shuffle', { state: !playback.shuffle_state }));
+        btnRepeat.addEventListener('click', () => {
+            const modes = ['off', 'context', 'track'];
+            sendSpotifyAction('repeat', { state: modes[(modes.indexOf(playback.repeat_state || 'off') + 1) % 3] });
+        });
+        seek.addEventListener('input', () => { dragging = true; elapsed.textContent = formatMusicTime(Number(seek.value)); });
+        volume.addEventListener('input', () => { volumeValue.textContent = `${volume.value}%`; });
+        volume.addEventListener('change', () => {
+            if (!volume.disabled) {
+                sendSpotifyAction('volume', { volume_percent: Number(volume.value), device_id: playback.device_id });
+            }
+        });
+        seek.addEventListener('change', () => {
+            const position_ms = Math.max(0, Math.min(playback.duration_ms - 1, Math.round(Number(seek.value))));
+            dragging = false;
+            sendSpotifyAction('seek', { position_ms });
+        });
+        setInterval(() => {
+            if (connected) {
+                if (!document.hidden) renderPlayback();
+                syncRoundVolume();
+            }
+        }, 250);
+        setInterval(refreshPlayback, 5000);
+        document.addEventListener('visibilitychange', () => {
+            if (!document.hidden && connected) { refreshPlayback(); loadSpotifyDevices(); }
+        });
+
+        (async function initSpotifyPanel() {
+            try {
+                const res = await fetch('{% url "timers:spotify_status" %}');
+                const data = await res.json();
+                if (!res.ok) throw new Error(data.error || `Status request failed (${res.status})`);
+                document.getElementById('spotifyConnectionStatus').textContent = data.configured === false
+                    ? 'Spotify is not configured on this server. Set the client ID and client secret, then restart Django.'
+                    : 'Connect Spotify to enable the music controls.';
+                if (!data.connected) {
+                    disconnectedState.classList.remove('d-none');
+                    connectedState.classList.add('d-none');
+                    return;
+                }
+                connected = true;
+                disconnectedState.classList.add('d-none');
+                connectedState.classList.remove('d-none');
+                connectedInfo.classList.remove('d-none');
+                displayNameEl.textContent = data.display_name || 'Spotify user';
+                await Promise.all([
+                    loadSpotifyPlaylists(data.last_playlist_uri),
+                    loadSpotifyDevices(data.last_device_id)
+                ]);
+                await refreshPlayback();
+            } catch (e) {
+                showSpotifyError(`Unable to check Spotify connection: ${e.message}`);
+            }
+        })();
+    });
+</script>
+{% endif %}
+{% endblock %}

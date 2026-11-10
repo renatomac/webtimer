@@ -1,0 +1,33 @@
+{% extends "timerapp/base.html" %}
+{% load static %}
+{% block title %}{% if object %}Edit{% else %}Create{% endif %} timer{% endblock %}
+{% block extra_head %}
+<style>
+  .timer-form { max-width: 620px; margin:2rem auto; padding:1.5rem; border:1px solid #334155; border-radius:1rem; background:#111827; }
+  .timer-form h1 { margin-top:0; }
+  .timer-form form p { display:flex; flex-direction:column; gap:.4rem; margin:1rem 0; }
+  .timer-form input,.timer-form select { min-height:2.7rem; border:1px solid #475569; border-radius:.45rem; padding:.5rem .7rem; background:#0f172a; color:#f8fafc; }
+  .timer-form input[type=checkbox] { min-height:0; }
+  .timer-form .helptext,.timer-form .helptext ul { color:#94a3b8; font-size:.85rem; }
+  .timer-form ul.errorlist { color:#fca5a5; }
+  .timer-form-actions { display:flex; gap:.75rem; margin-top:1rem; }
+  .timer-form-actions a,.timer-form-actions button { padding:.65rem .9rem; border-radius:.5rem; text-decoration:none; border:0; cursor:pointer; }
+  .timer-form-actions button { background:#10b981; color:#04120d; }
+  .timer-form-actions a { border:1px solid #64748b; color:#e2e8f0; }
+</style>
+{% endblock %}
+{% block content %}
+<section class="timer-form">
+  <h1>{% if object %}Edit timer{% else %}Create timer{% endif %}</h1>
+  <form method="post" enctype="multipart/form-data">
+    {% csrf_token %}
+    {{ form.non_field_errors }}
+    {% for field in form %}
+      <p>{{ field.label_tag }}{{ field }}{% if field.help_text %}<span class="helptext">{{ field.help_text }}</span>{% endif %}{{ field.errors }}</p>
+    {% endfor %}
+    <p id="timerWorkoutPreview" aria-live="polite"></p>
+    <div class="timer-form-actions"><button type="submit">Save timer</button><a href="{% url 'timers:list' %}">Cancel</a></div>
+  </form>
+</section>
+<script src="{% static 'timerapp/timer_editor_summary.js' %}" defer></script>
+{% endblock %}

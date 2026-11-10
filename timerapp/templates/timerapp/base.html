@@ -4,19 +4,27 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>{% block title %}Web Timer{% endblock %}</title>
+<link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Chakra+Petch:wght@500;700&family=Oswald:wght@600;700&family=Share+Tech+Mono&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="{% static 'timerapp/style.css' %}">
+{% block extra_head %}{% endblock %}
 </head>
 <body>
-<nav class="nav">
-  <strong>Web Timer</strong>
+<nav class="nav app-nav" aria-label="Main navigation">
+  <a class="nav-brand nav-button" href="{% url 'timers:list' %}">Web Timer</a>
+  {% if user.is_authenticated %}
+  <a class="nav-button" href="{% url 'timers:list' %}" {% if request.resolver_match.view_name == 'timers:list' %}aria-current="page"{% endif %}>My timers</a>
+  <a class="nav-button nav-create" href="{% url 'timers:create' %}" {% if request.resolver_match.view_name == 'timers:create' %}aria-current="page"{% endif %}><span aria-hidden="true">+</span> Create timer</a>
+  {% endif %}
   {% block nav %}{% endblock %}
   {% if user.is_authenticated %}
-  <form method="post" action="{% url 'logout' %}">{% csrf_token %}<button type="submit">Log out</button></form>
+  <form method="post" action="{% url 'logout' %}">{% csrf_token %}<button class="nav-button nav-logout" type="submit">Log out</button></form>
   {% endif %}
 </nav>
 <div class="page">
   {% if messages %}<ul class="messages">{% for m in messages %}<li>{{ m }}</li>{% endfor %}</ul>{% endif %}
   {% block content %}{% endblock %}
 </div>
+{% block extra_scripts %}{% endblock %}
 </body>
 </html>

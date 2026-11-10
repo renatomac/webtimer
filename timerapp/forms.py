@@ -2,7 +2,8 @@ import re
 
 from django import forms
 
-from .models import Preset
+from .models import Preset, Timer
+from .time_utils import seconds_to_hms
 
 TIME_RE = re.compile(r"^(\d{1,3}):(\d{2})$")
 
@@ -53,3 +54,55 @@ class PresetForm(forms.Form):
         preset.round_seconds, preset.rest_seconds = d["round_duration"], d["rest_duration"]
         preset.save()
         return preset
+
+
+def parse_timer_time(value):
+    value = (value or "").strip()
+    if not re.fullmatch(r"\d+(?::\d+){0,2}", value):
+        raise forms.ValidationError("Use H:mm:ss, mm:ss, or seconds.")
+
+    parts = [int(part) for part in value.split(":")]
+    if len(parts) == 1:
+        return parts[0]
+    if parts[-1] > 59 or (len(parts) == 3 and parts[-2] > 59):
+        raise forms.ValidationError("Minutes and seconds must be 59 or less.")
+    if len(parts) == 2:
+        return parts[0] * 60 + parts[1]
+    return parts[0] * 3600 + parts[1] * 60 + parts[2]
+
+
+class TimerForm(forms.ModelForm):
+    rounds = forms.IntegerField(min_value=1)
+    duration_str = forms.CharField(label="Duration (H:mm:ss or mm:ss)", initial="3:00")
+    interval_str = forms.CharField(label="Rest interval (H:mm:ss or mm:ss)", initial="1:00")
+
+    class Meta:
+        model = Timer
+        fields = ["name", "rounds", "duration_str", "interval_str", "direction", "sound_file"]
+        widgets = {"rounds": forms.NumberInput(attrs={"min": 1})}
+
+    def __init__(self, *args, **kwargs):
+        instance = kwargs.get("instance")
+        initial = kwargs.get("initial", {}).copy()
+        if instance:
+            initial.setdefault("duration_str", seconds_to_hms(instance.duration))
+            initial.setdefault("interval_str", seconds_to_hms(instance.interval))
+        kwargs["initial"] = initial
+        super().__init__(*args, **kwargs)
+
+    def clean_duration_str(self):
+        duration = parse_timer_time(self.cleaned_data["duration_str"])
+        if duration <= 0:
+            raise forms.ValidationError("Duration must be greater than zero.")
+        return duration
+
+    def clean_interval_str(self):
+        return parse_timer_time(self.cleaned_data["interval_str"])
+
+    def save(self, commit=True):
+        timer = super().save(commit=False)
+        timer.duration = self.cleaned_data["duration_str"]
+        timer.interval = self.cleaned_data["interval_str"]
+        if commit:
+            timer.save()
+        return timer

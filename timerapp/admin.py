@@ -1,6 +1,6 @@
 from django.contrib import admin, messages
 
-from .models import Preset, Studio, StudioMembership
+from .models import Preset, SpotifyAccount, Studio, StudioMembership, Timer
 
 
 class MembershipInline(admin.TabularInline):
@@ -28,3 +28,17 @@ class StudioAdmin(admin.ModelAdmin):
 class PresetAdmin(admin.ModelAdmin):
     list_display = ["name", "studio", "rounds", "round_seconds", "rest_seconds", "direction"]
     list_filter = ["studio"]
+
+
+@admin.register(Timer)
+class TimerAdmin(admin.ModelAdmin):
+    list_display = ["name", "user", "rounds", "duration", "interval", "direction", "status"]
+    list_filter = ["status", "direction"]
+    search_fields = ["name", "user__username"]
+
+
+@admin.register(SpotifyAccount)
+class SpotifyAccountAdmin(admin.ModelAdmin):
+    list_display = ["user", "display_name", "spotify_user_id", "expires_at", "updated_at"]
+    readonly_fields = ["access_token", "refresh_token", "expires_at", "created_at", "updated_at"]
+    search_fields = ["user__username", "display_name", "spotify_user_id"]

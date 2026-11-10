@@ -1,10 +1,37 @@
 # webtimer
 
-A multi-studio round timer for jiu-jitsu studios (Django). Each studio gets its own
-workspace, presets, logo, timezone and timer session. Staff control the timer from a
-phone/laptop; a TV shows a read-only display through a secret, revocable link.
+A Django round-timer app based on the timer experience in the CRM project. Users can
+create personal timers with work/rest rounds, run them with audio cues, and optionally
+connect Spotify playback controls.
+
+The previous multi-studio timer remains available under `/legacy/`. Its Studio, Preset,
+and TimerSession data is preserved; new CRM-style timers start empty.
+
+## Spotify music controls
+
+The controller includes Spotify playlist, device, playback, shuffle, and volume controls.
+Create a Spotify developer application and register this exact callback URL:
+
+`https://your-domain.example/timers/spotify/callback/`
+
+Then set `SPOTIFY_CLIENT_ID`, `SPOTIFY_CLIENT_SECRET`, and `SPOTIFY_REDIRECT_URI` in the
+server environment. Spotify playback control requires Spotify Premium and an active device.
 
 ## Local development
+
+On Windows PowerShell (set `DJANGO_DEBUG` in each new terminal):
+
+```powershell
+python -m venv .venv
+.\.venv\Scripts\Activate.ps1
+pip install -r requirements.txt
+$env:DJANGO_DEBUG = "1"
+python manage.py migrate
+python manage.py createsuperuser
+python manage.py runserver 0.0.0.0:8000
+```
+
+On Bash:
 
 ```bash
 python -m venv .venv && source .venv/bin/activate
@@ -28,19 +55,21 @@ python manage.py test            # run the test suite
 | `DB_PATH` | SQLite file (default `./db.sqlite3`). |
 | `DB_ENGINE=mysql`, `DB_NAME`, `DB_USER`, `DB_PASSWORD`, `DB_HOST` | Use MySQL instead of SQLite. |
 | `DJANGO_SECURE_COOKIES` | Defaults to `1` when not in debug; set `0` only for plain HTTP. |
+| `SPOTIFY_CLIENT_ID`, `SPOTIFY_CLIENT_SECRET`, `SPOTIFY_REDIRECT_URI` | Optional Spotify OAuth credentials; callback URI must end in `/timers/spotify/callback/`. |
 
-## Creating the first studio (platform administrator)
+## Using the timer app
 
-1. Log in at `/admin/` with the superuser.
-2. Create a user for the studio administrator (Users → Add). Leave "staff" off: they
-   only use the timer app, not Django admin.
-3. Studios → Add: set name, slug (the URL, `/s/<slug>/`), timezone (e.g. `America/Sao_Paulo`)
-   and optional logo. In the **Studio memberships** section add the user.
-4. The studio administrator logs in at `/accounts/login/`, creates presets under **Presets**, and
-   copies the TV link from the control page. "Revoke and regenerate link" (or the admin
-   action) invalidates the old link immediately.
+1. Run migrations, create a Django user, and log in at `/accounts/login/`.
+2. Open `/timers/` and create a timer with its round count, work duration, rest interval,
+   count direction, and optional finish sound.
+3. Open a timer to start, pause, or reset it. Your timers are private to your account.
+4. To configure Spotify, register `https://your-domain.example/timers/spotify/callback/`
+   as the redirect URI in your Spotify developer application and set the Spotify
+   environment variables before restarting the app.
 
-A studio administrator can only see and change their own studio; other studios return 404.
+The timer migration adds a per-user Timer table without dropping the previous Studio,
+Preset, or TimerSession tables. Those legacy screens remain at `/legacy/`; the root URL
+redirects to the new timer library.
 
 ## Deploying on PythonAnywhere
 
@@ -80,25 +109,15 @@ A studio administrator can only see and change their own studio; other studios r
 5. **Static and media**: on the Web tab, *Static files*:
    - URL `/static/` → directory `/home/<user>/webtimer-static`
    - URL `/media/` → directory `/home/<user>/webtimer-media`
-6. Click **Reload**, then create the first studio as described above.
+6. Click **Reload**, then create a user and timer as described above.
 
-## Manual verification (TV display + command screen)
+## Manual verification
 
-1. Create a studio with a preset: 2 rounds, `00:10` round, `00:05` rest, count down. Add a logo.
-2. Browser A (the "TV"): open the display link. Click **Enable sound** once. It should show
-   the date/time in the studio timezone, `Ready`, `10:00`-style digits (`00:10`) and a faint logo.
-3. Browser B (phone/laptop, logged in): open `/s/<slug>/`. Start/Pause/Resume/Stop/Reset
-   buttons should enable and disable according to the state (e.g. only Start while Ready).
-4. Press **Start**. Within ~1 s the TV shows `Round 1 of 2 · Rolling` counting down from `00:10`.
-   Listen for one beep each at 3, 2 and 1 s remaining, then a distinct bell at 0.
-5. Rest: the TV shows `Rest before Round 2 of 2`, with beeps at 3/2/1 s and no bell at the end of rest.
-6. Round 2 repeats the beeps and ends with the bell, then the TV shows `Finished` (no rest after the final round).
-7. Pause mid-round: both screens freeze and show `Paused`; Resume continues from the same value.
-   Stop shows `Stopped`; Reset returns to `Ready`.
-8. While running, refresh the TV page: it recovers phase, round and time without restarting
-   (click Enable sound again after a reload). No beeps should fire for cues that already passed.
-9. Edit the preset (e.g. 3 rounds) while a run is active: the current run is unaffected; the
-   next Start uses the new values. Repeat with a count-up preset: digits start at `00:00`
-   and end at the configured duration in both rolling and rest phases, with the same sound cues.
-10. Click "Revoke and regenerate link": the old TV URL returns 404.
-11. Log in as a second studio's administrator: they cannot open the first studio's URLs (404).
+1. Create a 2-round timer with a 10-second work phase and 5-second rest. Verify the total
+   excludes rest after the final round.
+2. Run the timer and verify it transitions through work, rest, and finished states; test
+   pause, resume, and reset.
+3. Create a second user and confirm each user can only list and operate their own timers.
+4. If Spotify is configured, connect an account and test playlist/device selection and
+   playback controls. Without configuration, the timer should explain that Spotify is unavailable.
+5. Open `/legacy/` and verify the existing Studio/Preset data remains available.

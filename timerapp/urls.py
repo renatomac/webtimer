@@ -15,4 +15,10 @@ urlpatterns = [
     path("s/<slug:slug>/presets/new/", views.preset_edit, name="preset_new"),
     path("s/<slug:slug>/presets/<int:pk>/edit/", views.preset_edit, name="preset_edit"),
     path("s/<slug:slug>/presets/<int:pk>/delete/", views.preset_delete, name="preset_delete"),
+    path("s/<slug:slug>/spotify/connect/", views.spotify_connect, name="spotify_connect"),
+    path("spotify/callback/", views.spotify_callback, name="spotify_callback"),
+    path("s/<slug:slug>/spotify/disconnect/", views.spotify_disconnect, name="spotify_disconnect"),
+    path("s/<slug:slug>/spotify/status/", views.spotify_status, name="spotify_status"),
+    path("s/<slug:slug>/spotify/<str:kind>/", views.spotify_data, name="spotify_data"),
+    path("s/<slug:slug>/spotify/control/", views.spotify_control, name="spotify_control"),
 ]

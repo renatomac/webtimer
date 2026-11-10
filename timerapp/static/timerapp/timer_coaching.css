@@ -1,0 +1,52 @@
+/* Scoped coaching refinements; the CRM library/editor retain the light theme. */
+.timer-app-wrapper *, .timer-app-wrapper *::before, .timer-app-wrapper *::after { box-sizing: border-box; }
+.timer-app-wrapper .d-none { display: none !important; }
+.timer-app-wrapper .d-flex { display: flex; }
+.timer-app-wrapper .align-items-center { align-items: center; }
+.timer-app-wrapper .gap-2 { gap: .5rem; }
+.timer-app-wrapper .gap-3 { gap: 1rem; }
+.timer-app-wrapper .timer-card { display: block; padding: 0; }
+.timer-app-wrapper .timer-core-section > * { flex-shrink: 0; }
+.timer-app-wrapper .timer-side-panel { width: 100%; }
+@media (min-width: 576px) {
+  .timer-app-wrapper .d-sm-inline { display: inline !important; }
+}
+@media (min-width: 768px) {
+  .timer-app-wrapper .d-md-inline { display: inline !important; }
+  .timer-app-wrapper .d-md-flex { display: flex !important; }
+}
+.timer-library .card-header { padding: 1.25rem; flex-wrap: wrap; gap: 1rem; background: #fff; }
+.timer-library .card-header > div { flex-wrap: wrap; }
+.timer-library th { color: #64748b; font-size: .8rem; background: #f8fafc; white-space: nowrap; }
+.timer-library td { padding: 1rem .75rem; }
+.timer-library td:last-child { min-width: 210px; white-space: nowrap; }
+.timer-app-wrapper .timer-card { box-shadow: 0 12px 30px rgba(0,0,0,.18) !important; backdrop-filter: none !important; }
+.timer-app-wrapper .timer-display { text-shadow: none !important; font-variant-numeric: tabular-nums; }
+.timer-app-wrapper #wallClock { font-size: clamp(1rem, 2.5vw, 1.7rem); opacity: .8; }
+.timer-app-wrapper .timer-title { font-family: system-ui, sans-serif; font-size: 1.1rem; }
+.timer-app-wrapper .timer-toolbar { gap: 1rem; flex-wrap: wrap; }
+.timer-app-wrapper .toolbar-tools { flex-wrap: wrap; justify-content: flex-end; }
+.timer-app-wrapper .tool-btn { min-height: 44px; }
+.timer-app-wrapper .wakelock-badge { min-height: 44px; background-color: transparent; }
+.timer-app-wrapper .spotify-panel[hidden] { display: none !important; }
+.timer-app-wrapper .timer-side-panel[hidden] { display: none !important; }
+.timer-side-panel { min-width: 0; display: flex; flex-direction: column; gap: 1rem; }
+.timer-switch-card { padding: 1rem; border: 1px solid rgba(255,255,255,.1); border-radius: 14px; background: rgba(255,255,255,.035); }
+.timer-switch-card h2 { font-family: system-ui, sans-serif; font-size: .9rem; font-weight: 600; color: #e2e8f0; margin: 0 0 .75rem; }
+.timer-switch-card select { width: 100%; min-width: 0; min-height: 44px; }
+.timer-switch-card p { font-size: .72rem; line-height: 1.5; color: #aebccd; margin: .65rem 0 0; }
+.timer-app-wrapper .timer-workout-summary { color: #aebccd; text-align: center; margin: .5rem 1rem 1rem; font-size: .85rem; }
+.timer-app-wrapper .timer-action-error { margin: .5rem 1rem; padding: .75rem; border: 1px solid #d89191; color: #ffe1e1; background: #4a2020; border-radius: 8px; }
+.timer-confirmation { width: min(460px, calc(100vw - 2rem)); padding: 1.5rem; border: 1px solid #425066; border-radius: 14px; background: #17202c; color: #f1f5f9; box-shadow: 0 20px 60px #0008; }
+.timer-confirmation::backdrop { background: #0009; }
+.timer-confirmation h2 { font: 700 1.15rem system-ui, sans-serif; margin: 0 0 1rem; }
+.timer-confirmation p { font: .95rem/1.6 system-ui, sans-serif; }
+.timer-confirmation-actions { display: flex; flex-wrap: wrap; justify-content: flex-end; gap: .75rem; margin-top: 1.5rem; }
+.timer-confirmation .btn-outline-secondary { color: #e2e8f0; border-color: #64748b; }
+.timer-app-wrapper .controls-wrapper .btn-timer { min-height: 52px; }
+@media (max-width: 575px) {
+  .timer-app-wrapper .timer-toolbar { padding: 1rem; }
+  .timer-app-wrapper .toolbar-tools { width: 100%; justify-content: flex-start; gap: .4rem; }
+  .timer-app-wrapper .timer-footer { flex-wrap: wrap; gap: .5rem; }
+  .timer-app-wrapper .timer-workout-summary { font-size: .75rem; line-height: 1.6; }
+}

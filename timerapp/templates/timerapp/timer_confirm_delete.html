@@ -1,0 +1,12 @@
+{% extends "timerapp/base.html" %}
+{% block title %}Delete timer{% endblock %}
+{% block content %}
+<section class="timer-form">
+  <h1>Delete timer?</h1>
+  <p>Delete <strong>{{ object.name }}</strong>? This cannot be undone.</p>
+  <form method="post">
+    {% csrf_token %}
+    <div class="timer-form-actions"><button type="submit">Delete timer</button><a href="{% url 'timers:list' %}">Cancel</a></div>
+  </form>
+</section>
+{% endblock %}

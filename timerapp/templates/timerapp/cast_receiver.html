@@ -1,0 +1,651 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+    <title>LZBJJ Fight Timer</title>
+    <link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Oswald:wght@700&family=Share+Tech+Mono&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --red:     #e8001c;
+            --red-dim: #7a000e;
+            --gold:    #c8960c;
+            --white:   #f0ece4;
+            --dark:    #080608;
+            --mid:     #b63195;
+        }
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            user-select: none;
+        }
+
+        /* ── BODY / ARENA BACKGROUND ─────────────────────────────── */
+        body {
+            width: 100vw;
+            height: 100vh;
+            overflow: hidden;
+            background: var(--dark);
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            font-family: 'Bebas Neue', sans-serif;
+            position: relative;
+        }
+
+        .receiver-logo {
+            position: absolute;
+            top: 5vh;
+            left: 5vw;
+            width: min(14vw, 24vh);
+            height: auto;
+            pointer-events: none;
+            z-index: 5;
+        }
+
+        /* ── VIGNETTE ───────────────────────────────────────────── */
+        .vignette {
+            position: absolute;
+            inset: 0;
+            background: radial-gradient(ellipse at center,
+                transparent 30%,
+                rgba(8,6,8,0.55) 65%,
+                rgba(8,6,8,0.92) 100%);
+            pointer-events: none;
+            z-index: 1;
+        }
+
+        /* ── SCAN-LINE TEXTURE ──────────────────────────────────── */
+        .scanlines {
+            position: absolute;
+            inset: 0;
+            background: repeating-linear-gradient(
+                0deg,
+                transparent,
+                transparent 3px,
+                rgba(0,0,0,0.18) 3px,
+                rgba(0,0,0,0.18) 4px
+            );
+            pointer-events: none;
+            z-index: 2;
+            animation: scanMove 12s linear infinite;
+        }
+        @keyframes scanMove {
+            from { background-position: 0 0; }
+            to   { background-position: 0 200px; }
+        }
+
+        /* ── CORNER BRACKETS ────────────────────────────────────── */
+        .bracket {
+            position: absolute;
+            width: 60px;
+            height: 60px;
+            border-color: var(--red);
+            border-style: solid;
+            opacity: 0.5;
+            z-index: 5;
+        }
+        .bracket.tl { top: 24px; left: 24px;  border-width: 3px 0 0 3px; }
+        .bracket.tr { top: 24px; right: 24px;  border-width: 3px 3px 0 0; }
+        .bracket.bl { bottom: 24px; left: 24px;  border-width: 0 0 3px 3px; }
+        .bracket.br { bottom: 24px; right: 24px;  border-width: 0 3px 3px 0; }
+
+        /* ── HORIZONTAL RULE LINES ──────────────────────────────── */
+        .h-line {
+            position: absolute;
+            left: 0; right: 0;
+            height: 1px;
+            background: linear-gradient(90deg, transparent, var(--red-dim) 20%, var(--red) 50%, var(--red-dim) 80%, transparent);
+            opacity: 0.35;
+            z-index: 5;
+        }
+        .h-line.top    { top: 80px; }
+        .h-line.bottom { bottom: 80px; }
+
+        /* ── MAIN CONTENT ───────────────────────────────────────── */
+        .stage {
+            position: relative;
+            z-index: 10;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            gap: 0;
+            width: 100%;
+            padding: 0 4vw;
+        }
+
+        /* ── PHASE LABEL (WORK / REST / READY) ──────────────────── */
+        .phase-label {
+            font-family: 'Oswald', sans-serif;
+            font-size: clamp(1.26rem, 3.5vw, 3.15rem);
+            font-weight: 700;
+            letter-spacing: 0.35em;
+            text-transform: uppercase;
+            color: var(--white);
+            padding: 0.15em 1.4em;
+            border-top: 2px solid currentColor;
+            border-bottom: 2px solid currentColor;
+            margin-bottom: 0.3em;
+            transition: color 0.25s, border-color 0.25s, text-shadow 0.25s;
+            text-shadow: 0 0 18px currentColor;
+            position: relative;
+        }
+        /* small tick marks on the borders */
+        .phase-label::before,
+        .phase-label::after {
+            content: '';
+            position: absolute;
+            width: 8px;
+            height: 8px;
+            border: 2px solid currentColor;
+            top: 50%;
+            transform: translateY(-50%) rotate(45deg);
+        }
+        .phase-label::before { left: -4px; }
+        .phase-label::after  { right: -4px; }
+
+        .phase-work  { color: #00e676; }
+        .phase-rest  { color: var(--red); }
+        .phase-ready { color: #888; }
+        .phase-done  { color: var(--gold); }
+
+        /* ── TIMER DIGITS ───────────────────────────────────────── */
+        .timer-digits {
+            font-family: 'Bebas Neue', sans-serif;
+            font-size: clamp(14rem, 26vw, 28rem);
+            line-height: 0.88;
+            letter-spacing: 0.04em;
+            color: var(--white);
+            text-shadow:
+                0 0 40px rgba(232,0,28,0.25),
+                0 0 80px rgba(232,0,28,0.1),
+                4px 4px 0px rgba(0,0,0,0.6);
+            transition: color 0.2s, text-shadow 0.2s;
+            position: relative;
+        }
+
+        /* Work state: green tint */
+        .digits-work {
+            color: #e8ffe8;
+            text-shadow:
+                0 0 40px rgba(0,230,118,0.3),
+                0 0 80px rgba(0,230,118,0.15),
+                4px 4px 0px rgba(0,0,0,0.6);
+        }
+
+        /* Rest state: red tint */
+        .digits-rest {
+            color: #ffe8e8;
+            text-shadow:
+                0 0 40px rgba(232,0,28,0.5),
+                0 0 100px rgba(232,0,28,0.2),
+                4px 4px 0px rgba(0,0,0,0.6);
+        }
+
+        /* Warning: full red flash */
+        .digits-warning {
+            color: var(--red) !important;
+            text-shadow:
+                0 0 20px #ff0020,
+                0 0 60px #ff0020,
+                0 0 120px rgba(255,0,32,0.4) !important;
+            animation: warningFlash 0.6s ease-in-out infinite alternate;
+        }
+        @keyframes warningFlash {
+            0%   { opacity: 0.8;  letter-spacing: 0.04em; }
+            100% { opacity: 1;    letter-spacing: 0.06em; }
+        }
+
+        /* ── ROUND INFO ─────────────────────────────────────────── */
+        .round-info {
+            font-family: 'Share Tech Mono', monospace;
+            font-size: clamp(1rem, 2.8vw, 2.2rem);
+            letter-spacing: 0.2em;
+            color: #666;
+            margin-top: 0.6em;
+            text-transform: uppercase;
+            transition: color 0.3s;
+        }
+        .round-info span {
+            color: var(--gold);
+        }
+
+        /* ── STATUS BAR (bottom) ────────────────────────────────── */
+        .status-bar {
+            position: fixed;
+            bottom: 0; left: 0; right: 0;
+            height: 36px;
+            background: rgba(8,6,8,0.85);
+            border-top: 1px solid rgba(232,0,28,0.2);
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 0 24px;
+            z-index: 20;
+        }
+        .status-bar .dot {
+            width: 7px; height: 7px;
+            background: #444;
+            border-radius: 50%;
+            margin-right: 8px;
+            transition: background 0.3s, box-shadow 0.3s;
+            display: inline-block;
+        }
+        .status-bar .dot.live {
+            background: #00e676;
+            box-shadow: 0 0 6px #00e676;
+            animation: dotBlink 2s ease-in-out infinite;
+        }
+        @keyframes dotBlink {
+            0%, 100% { opacity: 1; }
+            50%       { opacity: 0.4; }
+        }
+        .status-bar .label {
+            font-family: 'Share Tech Mono', monospace;
+            font-size: 11px;
+            color: #555;
+            letter-spacing: 0.15em;
+            text-transform: uppercase;
+        }
+        .status-bar .label.live { color: #00e676; }
+        .status-bar .brand {
+            font-family: 'Bebas Neue', sans-serif;
+            font-size: 16px;
+            letter-spacing: 0.2em;
+            color: var(--red-dim);
+        }
+
+        /* ── WALL CLOCK ── roughly 1/3 the size of the main countdown digits */
+        .wall-clock {
+            font-family: 'Share Tech Mono', monospace;
+            font-size: clamp(4.6rem, 8.6vw, 9.3rem);
+            letter-spacing: 0.08em;
+            color: var(--gold);
+            text-shadow: 0 0 24px rgba(247, 246, 243, 0.99);
+            font-variant-numeric: tabular-nums;
+            margin-bottom: 0.1em;
+            line-height: 1;
+        }
+
+        /* ── STATE: DONE GOLD SHIMMER ───────────────────────────── */
+        .digits-done {
+            background: linear-gradient(90deg, #c8960c, #ffe066, #c8960c);
+            background-size: 200%;
+            -webkit-background-clip: text;
+            background-clip: text;
+            color: transparent !important;
+            animation: goldShimmer 2s linear infinite;
+        }
+        @keyframes goldShimmer {
+            from { background-position: 200% center; }
+            to   { background-position: -200% center; }
+        }
+
+        /* Keep content inside a TV's overscan-safe area at 720p through 4K. */
+        body { padding: 5vh 5vw; }
+        .stage { height: 100%; padding: 0; gap: 2vh; min-width: 0; }
+        .receiver-logo { top: 5vh; left: 5vw; width: min(12vw, 19vh); }
+        .wall-clock {
+            font-size: min(5vw, 8vh);
+            letter-spacing: .025em;
+            white-space: nowrap;
+            margin: 0 0 1vh;
+            text-shadow: 0 0 12px rgba(200,150,12,.3);
+        }
+        .phase-label { flex-shrink: 0; margin: 0; letter-spacing: .22em; text-align: center; max-width: 85%; }
+        .timer-digits {
+            font-size: min(27vw, 43vh);
+            line-height: 1;
+            letter-spacing: .025em;
+            white-space: nowrap;
+            font-variant-numeric: tabular-nums;
+        }
+        .round-info { font-size: min(2.8vw, 4.5vh); margin: 0; color: #a5a0a5; text-align: center; }
+        .status-bar {
+            bottom: 5vh; left: 5vw; right: 5vw;
+            height: 3vh; min-height: 18px; padding: 0;
+            background: transparent; border: 0;
+        }
+        .status-bar .label { font-size: clamp(8px, .8vw, 18px); color: #aaa; }
+        .status-bar .brand { font-size: clamp(12px, 1.2vw, 26px); }
+        .bracket { width: 3vw; height: 5vh; }
+        .bracket.tl { top: 3vh; left: 3vw; }
+        .bracket.tr { top: 3vh; right: 3vw; }
+        .bracket.bl { bottom: 3vh; left: 3vw; }
+        .bracket.br { bottom: 3vh; right: 3vw; }
+        .h-line.top { top: 3vh; }
+        .h-line.bottom { bottom: 3vh; }
+        @media (max-aspect-ratio: 4/3) {
+            .receiver-logo { width: min(14vw, 14vh); }
+            .timer-digits { font-size: min(27vw, 38vh); }
+        }
+    </style>
+</head>
+<body>
+
+    <img class="receiver-logo" src="{% static 'timerapp/checkmat200x200.png' %}" alt="Checkmat">
+
+    <!-- Atmosphere layers -->
+    <div class="vignette"></div>
+    <div class="scanlines"></div>
+
+    <!-- Corner brackets -->
+    <div class="bracket tl"></div>
+    <div class="bracket tr"></div>
+    <div class="bracket bl"></div>
+    <div class="bracket br"></div>
+
+    <!-- Horizontal lines -->
+    <div class="h-line top"></div>
+    <div class="h-line bottom"></div>
+
+    <!-- Main display -->
+    <div class="stage">
+        <div class="wall-clock" id="wallClock">12:00:00 AM</div>
+        <div class="phase-label phase-ready" id="timerLabel">READY</div>
+        <div class="timer-digits" id="timerDisplay">00:00</div>
+        <div class="round-info" id="roundInfo">ROUND &nbsp;<span>—</span>&nbsp;/&nbsp;<span>—</span></div>
+    </div>
+
+    <!-- Status bar -->
+    <div class="status-bar">
+        <div style="display:flex;align-items:center;">
+            <span class="dot" id="statusDot"></span>
+            <span class="label" id="statusLabel">CONNECTING...</span>
+        </div>
+        <div class="brand">LZBJJ · FIGHT TIMER</div>
+    </div>
+
+    <!-- Cast Receiver SDK -->
+    <script src="https://www.gstatic.com/cast/sdk/libs/caf_receiver/v3/cast_receiver_framework.js"></script>
+
+    <script>
+    (function () {
+        const CUSTOM_NAMESPACE = 'urn:x-cast:com.yourdomain.timer';
+
+        const timerEl  = document.getElementById('timerDisplay');
+        const labelEl  = document.getElementById('timerLabel');
+        const roundEl  = document.getElementById('roundInfo');
+        const dotEl    = document.getElementById('statusDot');
+        const statEl   = document.getElementById('statusLabel');
+        const clockEl  = document.getElementById('wallClock');
+
+        // ── LIVE WALL CLOCK ───────────────────────────────────────
+        function updateWallClock() {
+            if (!clockEl) return;
+            const now = new Date();
+            const hours = now.getHours();
+            const h = (hours % 12 || 12).toString().padStart(2, '0');
+            const m = now.getMinutes().toString().padStart(2, '0');
+            const s = now.getSeconds().toString().padStart(2, '0');
+            clockEl.textContent = `${h}:${m}:${s} ${hours >= 12 ? 'PM' : 'AM'}`;
+        }
+        updateWallClock();
+        setInterval(updateWallClock, 1000);
+
+        // ── UI UPDATER ────────────────────────────────────────────
+        function applyState(data) {
+            // Time
+            if (data.time) timerEl.textContent = data.time;
+
+            // Determine phase
+            const raw   = (data.label || '').toLowerCase();
+            let phase   = 'ready';
+            if (raw.includes('work'))  phase = 'work';
+            if (raw.includes('rest'))  phase = 'rest';
+            if (raw.includes('done'))  phase = 'done';
+            if (raw.includes('ready')) phase = 'ready';
+
+            // Phase label text — strip round info from it if present
+            const labelText = raw.includes('round') ? phaseFromLabel(raw) : (data.label || 'READY').toUpperCase();
+
+            // Apply label styles
+            labelEl.className = 'phase-label phase-' + phase;
+            labelEl.textContent = labelText;
+
+            // Timer digit styles
+            timerEl.className = 'timer-digits';
+            if (data.warning) {
+                timerEl.classList.add('digits-warning');
+            } else {
+                if (phase !== 'ready') timerEl.classList.add('digits-' + phase);
+            }
+
+            // Round info
+            const roundMatch = (data.label || '').match(/round\s+(\d+)\s*[\/\-]\s*(\d+)/i);
+            const simpleMatch = (data.label || '').match(/round\s+(\d+)/i);
+            if (roundMatch) {
+                roundEl.innerHTML = `ROUND &nbsp;<span>${roundMatch[1]}</span>&nbsp;/&nbsp;<span>${roundMatch[2]}</span>`;
+            } else if (simpleMatch) {
+                roundEl.innerHTML = `ROUND &nbsp;<span>${simpleMatch[1]}</span>`;
+            } else if (data.roundText) {
+                roundEl.textContent = data.roundText;
+            }
+        }
+
+        function phaseFromLabel(raw) {
+            if (raw.includes('work')) return 'WORK';
+            if (raw.includes('rest')) return 'REST';
+            if (raw.includes('done')) return 'DONE';
+            return 'READY';
+        }
+
+        function setStatus(text, live) {
+            statEl.textContent = text;
+            statEl.className   = 'label' + (live ? ' live' : '');
+            dotEl.className    = 'dot'   + (live ? ' live' : '');
+        }
+
+        function setReadyUI() {
+            timerEl.textContent = '00:00';
+            timerEl.className   = 'timer-digits';
+            labelEl.textContent = 'READY';
+            labelEl.className   = 'phase-label phase-ready';
+            roundEl.innerHTML   = 'ROUND &nbsp;<span>—</span>&nbsp;/&nbsp;<span>—</span>';
+        }
+
+        let localTimerState = null;
+        let receiverInterval = null;
+        let receiverSkewOffset = 0;
+
+        function parseDate(dateStr) {
+            if (!dateStr) return null;
+            const normalized = dateStr.replace(/\.(\d{1,3})\d*/, '.$1');
+            const d = new Date(normalized);
+            if (isNaN(d.getTime())) {
+                return new Date(dateStr.split('.')[0]);
+            }
+            return d;
+        }
+
+        function getTimerStateAt(state, targetTime) {
+            if (state.status !== 'RUNNING' || !state.last_started_at) {
+                return {
+                    status: state.status,
+                    current_state: state.current_state,
+                    current_round: state.current_round,
+                    time_remaining: state.time_remaining
+                };
+            }
+            
+            const lastStarted = parseDate(state.last_started_at);
+            if (!lastStarted || isNaN(lastStarted.getTime())) {
+                return {
+                    status: state.status,
+                    current_state: state.current_state,
+                    current_round: state.current_round,
+                    time_remaining: state.time_remaining
+                };
+            }
+            
+            let elapsed = Math.floor((targetTime - lastStarted) / 1000);
+            if (elapsed <= 0) {
+                return {
+                    status: state.status,
+                    current_state: state.current_state,
+                    current_round: state.current_round,
+                    time_remaining: state.time_remaining
+                };
+            }
+            
+            let status = state.status;
+            let current_state = state.current_state;
+            let current_round = state.current_round;
+            let time_remaining = state.time_remaining;
+            
+            while (elapsed > 0) {
+                if (elapsed < time_remaining) {
+                    time_remaining -= elapsed;
+                    elapsed = 0;
+                } else {
+                    elapsed -= time_remaining;
+                    if (current_state === 'WORK') {
+                        if (current_round < state.rounds) {
+                            current_state = 'REST';
+                            time_remaining = state.interval;
+                        } else {
+                            status = 'DONE';
+                            current_state = 'WORK';
+                            time_remaining = 0;
+                            elapsed = 0;
+                        }
+                    } else { // REST
+                        current_state = 'WORK';
+                        current_round += 1;
+                        time_remaining = state.duration;
+                    }
+                }
+            }
+            
+            return {
+                status,
+                current_state,
+                current_round,
+                time_remaining
+            };
+        }
+
+        function updateReceiverTimer(timer) {
+            if (timer.server_time) {
+                receiverSkewOffset = timer.server_time - Date.now();
+            }
+            localTimerState = timer;
+            if (receiverInterval) {
+                clearInterval(receiverInterval);
+                receiverInterval = null;
+            }
+            if (timer.status === 'RUNNING') {
+                receiverInterval = setInterval(tickReceiver, 100);
+            }
+            renderReceiver();
+        }
+
+        function tickReceiver() {
+            if (!localTimerState || localTimerState.status !== 'RUNNING') return;
+            const current = getTimerStateAt(localTimerState, new Date(Date.now() + receiverSkewOffset));
+            
+            if (current.status === 'DONE') {
+                clearInterval(receiverInterval);
+                receiverInterval = null;
+                localTimerState.status = 'DONE';
+                localTimerState.time_remaining = 0;
+            }
+            renderReceiverWithValues(current);
+        }
+
+        function renderReceiver() {
+            if (!localTimerState) return;
+            const current = getTimerStateAt(localTimerState, new Date(Date.now() + receiverSkewOffset));
+            renderReceiverWithValues(current);
+        }
+
+        function formatTime(seconds) {
+            const m = Math.floor(seconds / 60);
+            const s = seconds % 60;
+            return `${m.toString().padStart(2, '0')}:${s.toString().padStart(2, '0')}`;
+        }
+
+        function renderReceiverWithValues(current) {
+            let displayTime = current.time_remaining;
+            if (localTimerState.direction === 'UP' && current.current_state === 'WORK') {
+                displayTime = localTimerState.duration - current.time_remaining;
+            }
+            
+            const timeStr = formatTime(displayTime);
+            const isWarning = current.current_state === 'WORK' && displayTime < 10;
+            
+            let labelText = '';
+            if (current.status === 'READY') {
+                labelText = 'READY';
+            } else if (current.status === 'DONE') {
+                labelText = 'DONE';
+            } else {
+                labelText = `${current.current_state} - Round ${current.current_round}/${localTimerState.rounds}`;
+            }
+            
+            const renderData = {
+                time: timeStr,
+                label: labelText,
+                warning: isWarning
+            };
+            
+            applyState(renderData);
+        }
+
+        // ── CAST RECEIVER SETUP ───────────────────────────────────
+        const context = cast.framework.CastReceiverContext.getInstance();
+        const options = new cast.framework.CastReceiverOptions();
+        options.disableIdleTimeout = true;
+        options.maxInactivity = 3600;
+
+        context.addCustomMessageListener(CUSTOM_NAMESPACE, function (event) {
+            let d = event.data;
+            if (!d) return;
+            
+            if (typeof d === 'string') {
+                try {
+                    d = JSON.parse(d);
+                } catch (e) {
+                    console.error("Error parsing custom message JSON", e);
+                }
+            }
+            
+            if (d && d.status !== undefined && d.duration !== undefined) {
+                updateReceiverTimer(d);
+                setStatus('LIVE · SYNCED', true);
+            } else {
+                if (d && d.server_time) {
+                    receiverSkewOffset = d.server_time - Date.now();
+                }
+                applyState(d);
+                setStatus('LIVE · RECEIVING', true);
+            }
+        });
+
+        context.addEventListener(cast.framework.system.EventType.READY, () => {
+            setReadyUI();
+            setStatus('RECEIVER READY', false);
+        });
+
+        context.addEventListener(cast.framework.system.EventType.SENDER_CONNECTED, () => {
+            setStatus('SENDER CONNECTED', true);
+        });
+
+        context.addEventListener(cast.framework.system.EventType.SENDER_DISCONNECTED, () => {
+            setStatus('SENDER DISCONNECTED', false);
+        });
+
+        context.start(options);
+
+        // Debug hook
+        window.debugCastUpdate = (time, label, warning) => applyState({ time, label, warning });
+        window.debugCastState = (state) => updateReceiverTimer(state);
+    })();
+    </script>
+</body>
+</html>

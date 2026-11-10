@@ -1,42 +1,25 @@
 {% extends "timerapp/base.html" %}
 {% load static %}
 {% block title %}{{ studio.name }} controls{% endblock %}
-{% block nav %}
-  <a href="{% url 'control' studio.slug %}">{{ studio.name }}</a>
-  <a href="{% url 'preset_list' studio.slug %}">Presets</a>
-{% endblock %}
+{% block nav %}<a href="{% url 'control' studio.slug %}">{{ studio.name }}</a><a href="{% url 'preset_list' studio.slug %}">Presets</a>{% endblock %}
 {% block content %}
-<form onsubmit="return false">{% csrf_token %}
-  <label for="preset-select">Preset</label>
-  <select id="preset-select">
-    {% for p in presets %}
-      <option value="{{ p.pk }}" {% if p.pk == initial_state.selected_preset_id %}selected{% endif %}>{{ p.name }}</option>
-    {% empty %}
-      <option value="">No presets yet</option>
-    {% endfor %}
-  </select>
-  {% if not presets %}<p><a href="{% url 'preset_new' studio.slug %}">Create a preset</a></p>{% endif %}
-</form>
-<div class="panel">
-  <div class="status" id="status"></div>
-  <div class="digits" id="digits">--:--</div>
-  <div class="phase" id="phase"></div>
+<div class="crm-timer-shell">
+  <form onsubmit="return false" class="crm-preset-picker">{% csrf_token %}<label for="preset-select">Timer preset</label><select id="preset-select">{% for p in presets %}<option value="{{ p.pk }}" {% if p.pk == initial_state.selected_preset_id %}selected{% endif %}>{{ p.name }}</option>{% empty %}<option value="">No presets yet</option>{% endfor %}</select>{% if not presets %}<p><a href="{% url 'preset_new' studio.slug %}">Create a preset</a></p>{% endif %}</form>
+  <section id="timer-card" class="crm-timer-card state-ready">
+    <header class="crm-timer-toolbar"><h1 class="crm-timer-title">{{ studio.name }} · Mat timer</h1><div class="crm-toolbar-tools"><span id="wake-lock" class="crm-wakelock" role="button" tabindex="0" aria-pressed="false"><i></i> <span>Screen normal</span></span></div></header>
+    <div class="crm-timer-core">
+      <div id="status" class="crm-phase-badge state-ready">Ready</div>
+      <div class="crm-round-meta"><div id="round" class="crm-round-indicator"></div><div id="round-pills" class="crm-round-pills" aria-label="Round progress"></div></div>
+      <div id="digits" class="crm-timer-display">--:--</div><div id="phase" class="crm-phase-copy"></div>
+      <div class="crm-progress-container"><div id="progress" class="crm-progress-fill"></div></div>
+      <div class="crm-controls"><button data-cmd="start" class="crm-button crm-button-start">Start</button><button data-cmd="pause" class="crm-button crm-button-pause">Pause</button><button data-cmd="resume" class="crm-button crm-button-start">Resume</button><button data-cmd="stop" class="crm-button crm-button-reset">Stop</button><button data-cmd="reset" class="crm-button crm-button-reset">Reset</button></div>
+      <section id="spotify-panel" class="crm-spotify-panel"><div class="crm-spotify-heading">Spotify</div><p id="spotify-message">Checking Spotify connection…</p><a id="spotify-connect" class="crm-spotify-connect" href="{% url 'spotify_connect' studio.slug %}">Connect Spotify</a><div id="spotify-controls" hidden><select id="spotify-playlist"><option value="">Choose a playlist</option></select><select id="spotify-device"><option value="">Choose a device</option></select><p id="spotify-track">No active track</p><div class="crm-spotify-buttons"><button data-spotify="previous">Previous</button><button data-spotify="play">Play</button><button data-spotify="pause">Pause</button><button data-spotify="next">Next</button><button data-spotify="shuffle">Shuffle</button><button data-spotify="repeat">Repeat</button></div><label>Track position <input id="spotify-seek" type="range" min="0" max="0" value="0"></label><label>Volume <input id="spotify-volume" type="range" min="0" max="100" value="50"></label></div></section>
+    </div>
+    <footer class="crm-timer-footer"><span>Timer controls</span><span>Space: start / pause · R: reset</span></footer>
+  </section>
+  <p class="error" id="message" role="alert"></p>
+  <section class="display-link"><h2>TV display link</h2><p>Open this read-only link on the TV. Anyone with the link can view the display.</p><p class="linkbox"><a href="{% url 'display' studio.display_token %}" target="_blank">{{ display_url }}</a></p><form method="post" action="{% url 'regenerate_link' studio.slug %}">{% csrf_token %}<button type="submit" class="danger">Revoke and regenerate link</button></form></section>
 </div>
-<div class="buttons">
-  <button data-cmd="start">Start</button>
-  <button data-cmd="pause">Pause</button>
-  <button data-cmd="resume">Resume</button>
-  <button data-cmd="stop" class="danger">Stop</button>
-  <button data-cmd="reset">Reset</button>
-</div>
-<p class="error" id="message" role="alert"></p>
-<h2>TV display link</h2>
-<p>Open this read-only link on the TV. Anyone with the link can view the display.</p>
-<p class="linkbox"><a href="{% url 'display' studio.display_token %}" target="_blank">{{ display_url }}</a></p>
-<form method="post" action="{% url 'regenerate_link' studio.slug %}">{% csrf_token %}
-  <button type="submit" class="danger">Revoke and regenerate link</button>
-</form>
 {{ config|json_script:"control-config" }}
-<script src="{% static 'timerapp/timer.js' %}"></script>
-<script src="{% static 'timerapp/control.js' %}"></script>
+<script src="{% static 'timerapp/timer.js' %}"></script><script src="{% static 'timerapp/control.js' %}"></script>
 {% endblock %}

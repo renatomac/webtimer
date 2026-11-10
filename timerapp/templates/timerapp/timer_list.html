@@ -1,0 +1,49 @@
+{% extends "timerapp/base.html" %}
+{% block title %}My timers{% endblock %}
+{% block extra_head %}
+<style>
+  .timer-library { max-width: 1100px; margin: 2rem auto; }
+  .timer-library header { display:flex; justify-content:space-between; align-items:center; gap:1rem; flex-wrap:wrap; }
+  .timer-library h1 { margin:0; }
+  .timer-table { width:100%; border-collapse:collapse; margin-top:1.5rem; }
+  .timer-table th,.timer-table td { padding:.85rem .65rem; text-align:left; border-bottom:1px solid #334155; }
+  .timer-table th { color:#94a3b8; font-size:.85rem; }
+  .timer-actions { display:flex; gap:.5rem; flex-wrap:wrap; }
+  .timer-actions a,.timer-library .primary,.timer-library .secondary { display:inline-block; padding:.55rem .8rem; border-radius:.5rem; text-decoration:none; }
+  .timer-library .primary { background:#10b981; color:#04120d; }
+  .timer-library .secondary { border:1px solid #64748b; color:#e2e8f0; }
+  .timer-empty { padding:3rem 1rem; text-align:center; color:#94a3b8; }
+  @media(max-width:700px) { .timer-table { display:block; overflow-x:auto; } }
+</style>
+{% endblock %}
+{% block content %}
+<section class="timer-library">
+  <header>
+    <h1>Your timers</h1>
+    <a class="primary" href="{% url 'timers:create' %}">Create timer</a>
+  </header>
+  {% if timers %}
+  <div class="timer-table-wrap">
+    <table class="timer-table">
+      <thead><tr><th>Name</th><th>Rounds</th><th>Work</th><th>Rest</th><th>Total</th><th>Status</th><th>Actions</th></tr></thead>
+      <tbody>
+      {% for timer in timers %}
+        <tr>
+          <td><strong>{{ timer.name }}</strong></td>
+          <td>{{ timer.rounds }}</td><td>{{ timer.work_label }}</td><td>{{ timer.rest_label }}</td>
+          <td>{{ timer.total_label }}</td><td>{{ timer.get_status_display }}</td>
+          <td><div class="timer-actions">
+            <a class="primary" href="{% url 'timers:run' timer.pk %}">Open</a>
+            <a class="secondary" href="{% url 'timers:edit' timer.pk %}">Edit</a>
+            <a class="secondary" href="{% url 'timers:delete' timer.pk %}">Delete</a>
+          </div></td>
+        </tr>
+      {% endfor %}
+      </tbody>
+    </table>
+  </div>
+  {% else %}
+  <div class="timer-empty"><p>You have no timers yet.</p><a class="primary" href="{% url 'timers:create' %}">Create your first timer</a></div>
+  {% endif %}
+</section>
+{% endblock %}
