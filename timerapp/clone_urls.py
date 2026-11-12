@@ -5,12 +5,14 @@ from . import timer_views
 app_name = "timers"
 
 urlpatterns = [
+    path("ably-token/", timer_views.ably_token, name="ably_token"),
     path("open/", timer_views.timer_home, name="home"),
     path("", timer_views.TimerListView.as_view(), name="list"),
     path("create/", timer_views.TimerCreateView.as_view(), name="create"),
     path("<int:pk>/edit/", timer_views.TimerUpdateView.as_view(), name="edit"),
     path("<int:pk>/delete/", timer_views.TimerDeleteView.as_view(), name="delete"),
     path("<int:pk>/run/", timer_views.TimerRunView.as_view(), name="run"),
+    path("<int:pk>/display/", timer_views.TimerDisplayView.as_view(), name="display"),
     path("active-state/", timer_views.active_timer_state, name="active_state"),
     path("<int:pk>/state/", timer_views.timer_state, name="state"),
     path("<int:pk>/action/", timer_views.timer_action, name="action"),

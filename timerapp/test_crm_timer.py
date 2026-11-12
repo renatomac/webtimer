@@ -1,5 +1,6 @@
 import json
 from datetime import timedelta
+from unittest.mock import patch
 
 from django.contrib.auth import get_user_model
 from django.test import TestCase, override_settings
@@ -49,6 +50,27 @@ class TimerFormTests(TestCase):
 
 
 class TimerWorkflowTests(TestCase):
+    def test_polling_preserves_fractional_time_and_phase_anchor(self):
+        started = timezone.now()
+        self.timer.status = "RUNNING"
+        self.timer.last_started_at = started
+        self.timer.save(update_fields=["status", "last_started_at"])
+        for elapsed in (1.2, 2.7, 4.1, 9.9):
+            with patch("django.utils.timezone.now", return_value=started + timedelta(seconds=elapsed)):
+                self.timer.sync_state()
+                self.timer.refresh_from_db()
+                self.assertEqual(self.timer.last_started_at, started)
+                self.assertEqual(self.timer.get_current_timer_state()[3], 10 - int(elapsed))
+        with patch("django.utils.timezone.now", return_value=started + timedelta(seconds=11.7)):
+            self.timer.sync_state()
+            self.timer.refresh_from_db()
+            self.assertEqual(self.timer.last_started_at, started + timedelta(seconds=10))
+            self.assertEqual(self.timer.get_current_timer_state()[3], 4)
+        with patch("django.utils.timezone.now", return_value=started + timedelta(seconds=15.1)):
+            self.timer.sync_state()
+            self.assertEqual(self.timer.last_started_at, started + timedelta(seconds=15))
+            self.assertEqual(self.timer.current_round, 2)
+
     def setUp(self):
         self.user = get_user_model().objects.create_user(username="timer-owner", password="test-pass-123")
         self.client.force_login(self.user)
@@ -72,6 +94,34 @@ class TimerWorkflowTests(TestCase):
         self.assertContains(response, "spotifyPanel")
         self.assertContains(response, "const CUSTOM_APP_ID = '480DA752';")
         self.assertContains(response, "Spotify controls are unavailable")
+
+    def test_tv_link_opens_private_timer_display(self):
+        display_url = reverse("timers:display", args=[self.timer.pk])
+        response = self.client.get(reverse("timers:run", args=[self.timer.pk]))
+        self.assertContains(response, f'href="{display_url}"')
+        response = self.client.get(display_url)
+        self.assertTemplateUsed(response, "timerapp/timer_display.html")
+        self.assertContains(response, reverse("timers:state", args=[self.timer.pk]))
+        self.assertNotContains(response, reverse("timers:active_state"))
+        self.assertContains(response, reverse("timers:ably_token"))
+        self.assertContains(response, "ably.min-2.js")
+        other = get_user_model().objects.create_user(username="display-other")
+        self.client.force_login(other)
+        self.assertEqual(self.client.get(display_url).status_code, 404)
+        self.client.logout()
+        self.assertEqual(self.client.get(display_url).status_code, 302)
+
+    def test_tv_display_stays_on_selected_ready_timer_when_another_is_running(self):
+        other = Timer.objects.create(user=self.user, name="Other workout")
+        self.action(timer=other, action="start")
+        response = self.client.get(reverse("timers:display", args=[self.timer.pk]))
+        self.assertContains(response, f"const timerId = {self.timer.pk};")
+        self.assertContains(response, reverse("timers:state", args=[self.timer.pk]))
+        self.assertNotContains(response, reverse("timers:state", args=[other.pk]))
+        snapshot = self.client.get(reverse("timers:state", args=[self.timer.pk])).json()
+        self.assertEqual(snapshot["id"], self.timer.pk)
+        self.assertEqual(snapshot["status"], "READY")
+        self.assertEqual(snapshot["time_remaining"], self.timer.duration)
 
     def test_cast_receiver_renders(self):
         response = self.client.get(reverse("cast_receiver"))

@@ -4,15 +4,17 @@ import secrets
 from django.contrib import messages
 from django.contrib.auth.decorators import login_required
 from django.contrib.auth.mixins import LoginRequiredMixin
+from django.db import transaction
 from django.http import JsonResponse
 from django.shortcuts import get_object_or_404, redirect, render
 from django.urls import reverse, reverse_lazy
 from django.utils import timezone
 from django.utils.http import url_has_allowed_host_and_scheme
 from django.views.decorators.http import require_GET, require_POST
+from django.views.decorators.cache import never_cache
 from django.views.generic import CreateView, DeleteView, DetailView, ListView, UpdateView
 
-from . import spotify_client
+from . import spotify_client, realtime
 from .forms import TimerForm
 from .models import SpotifyAccount, Timer
 
@@ -92,27 +94,52 @@ class TimerRunView(LoginRequiredMixin, DetailView):
         return context
 
 
+class TimerDisplayView(LoginRequiredMixin, DetailView):
+    model = Timer
+    template_name = "timerapp/timer_display.html"
+    context_object_name = "timer"
+
+    def get_queryset(self):
+        return Timer.objects.filter(user=self.request.user)
+
+
 @login_required
 @require_GET
+@never_cache
+def ably_token(request):
+    try:
+        token_request = realtime.create_token_request(request.user.pk)
+    except (ValueError, AttributeError):
+        return JsonResponse({"error": "Realtime updates are unavailable."}, status=503)
+    return JsonResponse(token_request)
+
+
+@login_required
+@require_GET
+@never_cache
 def active_timer_state(request):
+    received_at = timezone.now()
     timer = Timer.objects.filter(user=request.user, status__in=["RUNNING", "PAUSED"]).order_by("pk").first()
     if timer is None:
         return JsonResponse({"active": False})
     timer.sync_state()
-    return JsonResponse(dict(timer.to_dict(), active=True))
+    return JsonResponse(dict(timer.to_dict(), active=True, server_received_at=received_at.isoformat()))
 
 
 @login_required
 @require_GET
+@never_cache
 def timer_state(request, pk):
+    received_at = timezone.now()
     timer = get_object_or_404(Timer, pk=pk, user=request.user)
     timer.sync_state()
-    return JsonResponse(timer.to_dict())
+    return JsonResponse(dict(timer.to_dict(), server_received_at=received_at.isoformat()))
 
 
 @login_required
 @require_POST
 def timer_action(request, pk):
+    received_at = timezone.now()
     timer = get_object_or_404(Timer, pk=pk, user=request.user)
     try:
         data = json.loads(request.body)
@@ -189,7 +216,10 @@ def timer_action(request, pk):
         timer.last_started_at = None
 
     timer.save(update_fields=["status", "current_round", "current_state", "time_remaining", "last_started_at"])
-    return JsonResponse(timer.to_dict())
+    payload = timer.to_dict()
+    transaction.on_commit(lambda: realtime.publish_timer_update(request.user.pk, payload))
+    # Publishing can take seconds; timestamp the HTTP snapshot after that wait.
+    return JsonResponse(dict(timer.to_dict(), server_received_at=received_at.isoformat()))
 
 
 @login_required

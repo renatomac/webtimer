@@ -186,13 +186,13 @@ class Timer(models.Model):
             self.last_started_at = None
         super().save(*args, **kwargs)
 
-    def get_current_timer_state(self):
+    def get_current_timer_state(self, now=None):
         if self.status != "RUNNING" or not self.last_started_at:
             return self.status, self.current_state, self.current_round, self.time_remaining
 
         from django.utils import timezone
 
-        elapsed = int((timezone.now() - self.last_started_at).total_seconds())
+        elapsed = int(((now or timezone.now()) - self.last_started_at).total_seconds())
         if elapsed <= 0:
             return self.status, self.current_state, self.current_round, self.time_remaining
 
@@ -224,7 +224,13 @@ class Timer(models.Model):
         return status, current_state, current_round, time_remaining
 
     def sync_state(self, save=True):
-        new_status, new_state, new_round, new_remaining = self.get_current_timer_state()
+        from django.utils import timezone
+
+        now = timezone.now()
+        new_status, new_state, new_round, new_remaining = self.get_current_timer_state(now)
+        # A read must not move the running clock. Only normalize at phase boundaries.
+        if new_status == "RUNNING" and (new_state, new_round) == (self.current_state, self.current_round):
+            return
         if (self.status, self.current_state, self.current_round, self.time_remaining) == (
             new_status, new_state, new_round, new_remaining
         ):
@@ -234,11 +240,10 @@ class Timer(models.Model):
         self.current_state = new_state
         self.current_round = new_round
         if new_status == "RUNNING":
-            from django.utils import timezone
-
             duration = self.duration if new_state == "WORK" else self.interval
             passed = duration - new_remaining
-            self.last_started_at = timezone.now() - timezone.timedelta(seconds=passed)
+            elapsed = int((now - self.last_started_at).total_seconds())
+            self.last_started_at += timezone.timedelta(seconds=elapsed - passed)
             self.time_remaining = duration
         else:
             self.time_remaining = new_remaining

@@ -19,6 +19,24 @@ server environment. Spotify playback control requires Spotify Premium and an act
 
 ## Local development
 
+### Ably TV synchronization
+
+Set `ABLY_API_KEY` in the server environment (or the local `.env`). The key needs
+publish and subscribe permissions for `user-*-timer` channels. Keep the key on the
+server; logged-in displays use `/timers/ably-token/` to obtain a signed, one-hour,
+subscribe-only token request restricted to their own user's channel.
+
+Start, pause, reset, and completion actions publish an `update` event after the
+database commit. The TV display fetches its selected timer on matching events,
+on channel reattachment, and every 30 seconds while connected. If Ably is unavailable,
+it polls every second. Countdown rendering runs locally between snapshots. The TV
+and controller must be signed in as the same user; the display stays on the timer
+selected in its URL, including ready, paused, and finished states. Publishing failures
+are logged and do not undo timer actions.
+
+The integration uses Ably's documented [signed token request format](https://ably.com/docs/api/token-request-spec)
+and the existing `requests` dependency; no Python Ably SDK is required.
+
 On Windows PowerShell (set `DJANGO_DEBUG` in each new terminal):
 
 ```powershell

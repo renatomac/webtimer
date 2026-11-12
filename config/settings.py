@@ -109,9 +109,9 @@ LOGIN_REDIRECT_URL = "timers:home"
 LOGOUT_REDIRECT_URL = "login"
 
 # Optional Spotify OAuth. Leave blank until a Spotify developer app is configured.
-SPOTIFY_CLIENT_ID = os.environ.get("SPOTIFY_CLIENT_ID", "")
-SPOTIFY_CLIENT_SECRET = os.environ.get("SPOTIFY_CLIENT_SECRET", "")
-SPOTIFY_REDIRECT_URI = os.environ.get("SPOTIFY_REDIRECT_URI", "")
+SPOTIFY_CLIENT_ID = os.getenv("SPOTIFY_CLIENT_ID", "")
+SPOTIFY_CLIENT_SECRET = os.getenv("SPOTIFY_CLIENT_SECRET", "")
+SPOTIFY_REDIRECT_URI = os.getenv("SPOTIFY_REDIRECT_URI", "")
 
 if not DEBUG:
     SESSION_COOKIE_SECURE = env_bool("DJANGO_SECURE_COOKIES", True)
@@ -121,3 +121,5 @@ if not DEBUG:
 PA_USERNAME = 'lzbjj'
 PA_TOKEN = 'ebfb5812c0dbd431e786421a4d98204625a5cee5'
     
+# Ably API key
+ABLY_API_KEY = os.getenv('ABLY_API_KEY', '')

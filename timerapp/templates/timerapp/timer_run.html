@@ -742,6 +742,7 @@
             </div>
 
             <div class="toolbar-tools">
+                <a href="{% url 'timers:display' timer.pk %}" class="tool-btn" target="_blank" rel="noopener"><i class="fas fa-tv" aria-hidden="true"></i> Open TV timer</a>
                 <!-- Screen Wake Lock Status Indicator -->
                 <button type="button" id="wakeLockBadge" class="wakelock-badge" aria-pressed="false" title="Tap to toggle screen wake lock (keeps device screen on)">
                     <span class="wakelock-dot"></span>
@@ -887,10 +888,6 @@
             </section>
             </div>
         </div>
-
-        <footer class="timer-tv-link">
-            <a href="{% url 'cast_receiver' %}?timer={{ timer.pk }}" target="_blank" rel="noopener"><i class="fas fa-tv" aria-hidden="true"></i> Open TV timer</a>
-        </footer>
 
         <p id="timerActionError" class="timer-action-error" role="alert" hidden></p>
         <dialog id="timerConfirmation" class="timer-confirmation" aria-labelledby="timerConfirmationTitle" aria-describedby="timerConfirmationMessage">
@@ -1496,14 +1493,18 @@
                 if (localTimerState.status === 'DONE') sendAction('complete');
             }, 1500);
         }
-        function updateLocalTimerState(timer) {
+        function updateLocalTimerState(timer, requestStartedAt) {
             if (completionReset !== null && timer.status !== 'DONE') {
                 clearTimeout(completionReset);
                 completionReset = null;
             }
             if (timer.server_time) {
                 const serverTime = new Date(timer.server_time);
-                window.timerSkewOffset = serverTime.getTime() - Date.now();
+                const received = new Date(timer.server_received_at || timer.server_time);
+                const offset = requestStartedAt === undefined
+                    ? serverTime.getTime() - Date.now()
+                    : ((received.getTime() - requestStartedAt) + (serverTime.getTime() - Date.now())) / 2;
+                if (Number.isFinite(offset)) window.timerSkewOffset = offset;
             }
             localTimerState = timer;
             window.localTimerState = timer;
@@ -1671,6 +1672,29 @@
         }
 
         let actionPending = false;
+        let actionRevision = 0;
+        let refreshingState = false;
+        async function refreshTimerState() {
+            if (actionPending || refreshingState) return;
+            refreshingState = true;
+            const revision = actionRevision;
+            const startedAt = Date.now();
+            const controller = new AbortController();
+            const timeout = setTimeout(() => controller.abort(), 8000);
+            try {
+                const response = await fetch(`/timers/${localTimerState.id}/state/`, {
+                    cache: 'no-store', credentials: 'same-origin', signal: controller.signal,
+                });
+                if (!response.ok) return;
+                const data = await response.json();
+                if (!actionPending && revision === actionRevision) updateLocalTimerState(data, startedAt);
+            } catch (error) {
+                // Continue from the last timing anchor until the next refresh.
+            } finally {
+                clearTimeout(timeout);
+                refreshingState = false;
+            }
+        }
         function confirmTimerAction(message) {
             const dialog = document.getElementById('timerConfirmation');
             document.getElementById('timerConfirmationMessage').textContent = message;
@@ -1686,12 +1710,14 @@
                 return;
             }
             actionPending = true;
+            actionRevision += 1;
             const actionError = document.getElementById('timerActionError');
             actionError.hidden = true;
             if (actionName === 'start' && readPreference('coaching', false) && !isFullscreenActive()) enterFullscreen();
             initAudio();
             const token = getCsrfToken();
             try {
+                const requestStartedAt = Date.now();
                 const res = await fetch(`/timers/${localTimerState.id}/action/`, {
                     method: 'POST',
                     headers: {
@@ -1711,7 +1737,7 @@
                     return;
                 }
                 if (!res.ok) throw new Error(data.error || `Timer action failed (${res.status})`);
-                updateLocalTimerState(data);
+                updateLocalTimerState(data, requestStartedAt);
             } catch (e) {
                 actionError.textContent = 'Could not update timer. Please try again.';
                 actionError.hidden = false;
@@ -1757,13 +1783,19 @@
                 const timer = msg.data;
                 if (timer.id === localTimerState.id) {
                     console.log("Ably received update for this timer", timer);
-                    updateLocalTimerState(timer);
+                    refreshTimerState();
                 }
             });
         }
 
         // Initial setup
         updateLocalTimerState(localTimerState);
+        refreshTimerState();
+        setInterval(refreshTimerState, 10000);
+        window.addEventListener('online', refreshTimerState);
+        document.addEventListener('visibilitychange', () => {
+            if (!document.hidden) refreshTimerState();
+        });
 
         // Restore the saved coaching layout after selecting another timer.
         // Native fullscreen may require a gesture; enterFullscreen has a CSS fallback.
